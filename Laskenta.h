@@ -125,6 +125,26 @@ private:
 
 //**********************************************************************************************************************
 
+inline Expression operator+(double r, Variable const& s) { return Expression(r) + s; }
+inline Expression operator-(double r, Variable const& s) { return Expression(r) - s; }
+inline Expression operator*(double r, Variable const& s) { return Expression(r) * s; }
+inline Expression operator/(double r, Variable const& s) { return Expression(r) / s; }
+
+inline Expression operator+(Variable const& r, double s) { return Expression(r) + s; }
+inline Expression operator-(Variable const& r, double s) { return Expression(r) - s; }
+inline Expression operator*(Variable const& r, double s) { return Expression(r) * s; }
+inline Expression operator/(Variable const& r, double s) { return Expression(r) / s; }
+
+inline Expression operator+(Variable const& r, Variable const& s) { return Expression(r) + s; }
+inline Expression operator-(Variable const& r, Variable const& s) { return Expression(r) - s; }
+inline Expression operator*(Variable const& r, Variable const& s) { return Expression(r) * s; }
+inline Expression operator/(Variable const& r, Variable const& s) { return Expression(r) / s; }
+
+inline Expression operator+(Variable const& r) { return +Expression(r); }
+inline Expression operator-(Variable const& r) { return -Expression(r); }
+
+//**********************************************************************************************************************
+
 namespace std
 {
 inline double sign(double x)
