@@ -12,10 +12,14 @@ TODO
 
 # Applicability
 TODO
+* Rapid prototyping
+* Optimization
+* Numerical solutions to math problems that are otherwise hard to crack
+  * Inverse functions, e.g. using Newton-Raphson for problems such as: given 'y' solve 'x' in 'y = x * log(x)'
 * Photogrammetry
 * Visual SLAM
 * Sensor Fusion
-* Robot kinematics
+* Robotics, inverse kinematics
 * Modelling the real world
 * Curve fitting
   * Test
