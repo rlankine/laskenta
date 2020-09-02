@@ -4,3 +4,16 @@ Laskenta is a stand-alone C++ library for multivariable differential calculus.  
 
 The 'derivative' is often also called 'differential'.  The Finnish word 'laskenta' means 'calculus' in English, hence the name of the library.
 
+# Installing
+TODO
+
+# Getting started
+TODO
+
+# Applicability
+TODO
+* Test
+* Test
+  * Test
+- Test
+  - Test
