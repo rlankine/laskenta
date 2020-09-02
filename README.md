@@ -12,8 +12,12 @@ TODO
 
 # Applicability
 TODO
-* Test
-* Test
+* Photogrammetry
+* Visual SLAM
+* Sensor Fusion
+* Robot kinematics
+* Modelling the real world
+* Curve fitting
   * Test
 - Test
   - Test
