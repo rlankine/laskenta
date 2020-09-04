@@ -29,5 +29,11 @@ TODO
 ## Under the hood
 TODO
 
+#### Caveats
+TODO
+
 ## Future plans
+TODO
+
+## Links & footnotes
 TODO
