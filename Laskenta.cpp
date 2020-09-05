@@ -64,6 +64,7 @@ struct Expression::data : public Shared
     virtual Expression::data const* sin() const;
     virtual Expression::data const* cos() const;
     virtual Expression::data const* tan() const;
+    virtual Expression::data const* sec() const;
     virtual Expression::data const* asin() const;
     virtual Expression::data const* acos() const;
     virtual Expression::data const* atan() const;
@@ -100,7 +101,7 @@ struct Expression::data : public Shared
 
     enum class NodeType
     {
-        ABS, SIGN, SQRT, CBRT, EXP, LOG, SIN, COS, TAN, ASIN, ACOS, ATAN, SINH, COSH, TANH, ASINH, ACOSH, ATANH, ERF,
+        ABS, SIGN, SQRT, CBRT, EXP, LOG, SIN, COS, TAN, SEC, ASIN, ACOS, ATAN, SINH, COSH, TANH, ASINH, ACOSH, ATANH, ERF,
         INVERT, NEGATE, SQUARE, XCONIC, YCONIC, ZCONIC, CONSTANT, VARIABLE, ADD, MUL, POW
     };
 
@@ -316,6 +317,7 @@ struct ConstantNode final : public Expression::data, private ObjectGuard<Constan
     Expression::data const* sin() const override final;
     Expression::data const* cos() const override final;
     Expression::data const* tan() const override final;
+    Expression::data const* sec() const override final;
     Expression::data const* asin() const override final;
     Expression::data const* acos() const override final;
     Expression::data const* atan() const override final;
@@ -601,6 +603,22 @@ struct Cos final : public FunctionNode, private ObjectGuard<Cos>
 struct Tan final : public FunctionNode, private ObjectGuard<Tan>
 {
     Tan(Expression::data const* p) : FunctionNode(p, NodeType::TAN) { }
+
+    bool guaranteed(Expression::Attribute) const override final;
+
+    Expression::data const* derivative(Variable const&) const override final;
+    double value() const override final;
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** Sec
+***********************************************************************************************************************/
+
+struct Sec final : public FunctionNode, private ObjectGuard<Sec>
+{
+    Sec(Expression::data const* p) : FunctionNode(p, NodeType::SEC) { }
 
     bool guaranteed(Expression::Attribute) const override final;
 
@@ -1000,6 +1018,9 @@ Expression::data const* Expression::data::function(NodeType n) const
 
     case NodeType::TAN:
         return new Tan(Clone(this));
+
+    case NodeType::SEC:
+        return new Sec(Clone(this));
 
     case NodeType::ASIN:
         return new ASin(Clone(this));
@@ -1634,6 +1655,20 @@ Expression::data const* Negate::tan() const  // tan(-x) ----> -tan(x)
 }
 
 /***********************************************************************************************************************
+*** sec()
+***********************************************************************************************************************/
+
+Expression::data const* Expression::data::sec() const
+{
+    return function(NodeType::SEC);
+}
+
+Expression::data const* ConstantNode::sec() const
+{
+    return constant(1 / std::cos(n));
+}
+
+/***********************************************************************************************************************
 *** asin()
 ***********************************************************************************************************************/
 
@@ -2098,9 +2133,9 @@ Expression::data const* SinH::yconic() const  // sqrt(1+sinh(x)^2) ----> cosh(x)
     return f_x->cosh();
 }
 
-Expression::data const* XConic::yconic() const  // sqrt(1+sqrt(x^2-1)^2) ----> abs(x)  ; iff x >=1
+Expression::data const* XConic::yconic() const  // sqrt(1+sqrt(x^2-1)^2) ----> abs(x)  ; iff x >= 1 || x <= -1
 {
-    return f_x->guaranteed(Expression::Attribute::POSITIVE) && f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE) ? f_x->abs() : Expression::data::yconic();
+    return f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE) ? f_x->abs() : Expression::data::yconic();
 }
 
 /***********************************************************************************************************************
@@ -2650,17 +2685,31 @@ Expression::data const* Tan::derivative(Variable const& r) const
     // D(tan(f_x)) = D(f_x) * 1/cos(f_x)^2
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->cos();
+    auto step1 = f_x->sec();
     auto step2 = step1->square();
-    auto step3 = step2->invert();
-    auto step4 = step0->mul(step3);
+    auto step3 = step0->mul(step2);
 
     Erase(step0);
     Erase(step1);
     Erase(step2);
-    Erase(step3);
 
-    return step4;
+    return step3;
+}
+
+Expression::data const* Sec::derivative(Variable const& r) const
+{
+    // D(sec(f_x)) = D(f_x) * tan(f_x)*sec(f_x)
+
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->tan();
+    auto step2 = mul(step1);
+    auto step3 = step0->mul(step2);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+
+    return step3;
 }
 
 Expression::data const* ASin::derivative(Variable const& r) const
@@ -2875,7 +2924,7 @@ Expression::data const* Square::derivative(Variable const& r) const
 
 Expression::data const* XConic::derivative(Variable const& r) const
 {
-    // D(sqrt(f_x^2-1)) = D(f_x) * f_x / sqrt(f_x^2-1)
+    // D(sqrt(f_x^2-1)) = D(f_x) * f_x/sqrt(f_x^2-1)
 
     auto step0 = f_x->derive(r);
     auto step1 = invert();
@@ -3042,6 +3091,11 @@ double Tan::value() const
     return std::tan(f_x->evaluate());
 }
 
+double Sec::value() const
+{
+    return 1 / std::cos(f_x->evaluate());
+}
+
 double ASin::value() const
 {
     return std::asin(f_x->evaluate());
@@ -3111,7 +3165,6 @@ double Square::value() const
 double XConic::value() const
 {
     auto x = f_x->evaluate();
-    if (x < 0) x = 0;
     return std::sqrt(x * x - 1);
 }
 
@@ -3458,6 +3511,11 @@ bool Tan::guaranteed(Expression::Attribute a) const
         return true;
     }
 
+    return false;
+}
+
+bool Sec::guaranteed(Expression::Attribute a) const
+{
     return false;
 }
 
@@ -4257,6 +4315,13 @@ void Cos::print(std::ostream& out) const
 void Tan::print(std::ostream& out) const
 {
     out << "tan(";
+    f_x->print(out);
+    out << ")";
+}
+
+void Sec::print(std::ostream& out) const
+{
+    out << "sec(";
     f_x->print(out);
     out << ")";
 }
