@@ -6,9 +6,11 @@ The Finnish word for 'calculus' is 'laskenta', hence the name of the library.
 
 ## Installing
 Currently there is no automatic installing, but putting the files in their right places is very easy:
+
 - `laskenta.cpp` -- Laskenta Library implementation
 - `laskenta.h` -- Laskenta API declarations used by `laskenta.cpp` and your application source file(s)
 - `tools.h` -- General purpose development helpers used by `laskenta.cpp`
+
 I suggest copying the header files (`laskenta.h` and `tools.h`) either to the directory of your common/shared/global header files, or to the same directory with your project resides.  The implementation file (`laskenta.cpp`) should be copied to the same directory with your project files.
 
 ## Getting started
