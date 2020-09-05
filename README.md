@@ -24,30 +24,26 @@ Laskenta Library can manipulate highly complex mathematical expressions and it d
 
 Finally, because of its versatility the Laskenta Library is an enabler to many algorithms that currently reside only on paper.  It can easily and efficiently compute Jacobian vectors and Hessian matrices of multivariable expressions.  It can easily compute second or third or any higher derivative of an expression making it possible to chain various mathematical methods even if they all need derivatives.  For example, consider solving a *differential* equation (=1st order derivative) using *gradient descent* algorithm with a variable descend rate (=2nd order derivatives) finding the descend rate that *minimizes* the value along the current gradient (=3rd order derivative) using *Newton-Raphson* iteration (=4th order derivative).
 
-Possible applications:
-- Bundle adjustment (used in photogrammetry and visual SLAM
-- Inverse kinematics
-- Neural networks
-- Sensor Fusion
-
-- Photogrammetry: Machine vision, bundle adjustment
-- Robotics: Inverse kinematics, machine vision
-
-* Rapid prototyping
-* Optimization
-* Numerical solutions to math problems that are otherwise hard to crack
-  * Inverse functions, e.g. using Newton-Raphson for problems such as: given 'y' solve 'x' in 'y = x * log(x)'
+Some application areas:
+* Mathematics
+  * dynamic modeling and analysis
+  * numerical solving and optimization
+  * approximating difficult inverse functions
+  * approximating difficult integrals
+* Navigation
+  * sensor fusion and kalman filter
+  * location using scenery artifact tracking
+* Neural networks
+  * using unconventional activation and objective functions
+  * using unconventional network topologies
+  * removes the need to develop explicit back-propagation algorithms
 * Photogrammetry
-* Visual SLAM
-* Sensor Fusion
-* Robotics, inverse kinematics
-* Modelling the real world
-* Integrals
-* Differential equations
-* Curve fitting
-  * Test
-- Test
-  - Test
+  * bundle adjustment
+* Prediction
+  * curve fitting and extrapolating
+* Robotics
+  * inverse kinematics
+  * machine vision
 
 ## Under the hood
 TODO
