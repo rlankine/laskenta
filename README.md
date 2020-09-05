@@ -26,13 +26,13 @@ Finally, because of its versatility the Laskenta Library is an enabler to many a
 
 #### Some application areas:
 * Mathematics
-  * dynamic modeling and analysis
+  * dynamic system modeling and analysis
   * numerical solving and optimization
   * approximating difficult inverse functions
   * approximating difficult integrals
 * Navigation
   * sensor fusion and kalman filter
-  * location using scenery artifact tracking
+  * simultaneous locating and mapping by tracking scenery artifacts
 * Neural networks
   * easily implement unconventional activation or objective functions
   * easily implement irregular network topologies
