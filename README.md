@@ -5,7 +5,7 @@ Laskenta is a C++ library for multivariable differential calculus.  It is used t
 The Finnish word for 'calculus' is 'laskenta', hence the name of the library.
 
 ## Installing
-Currently there is no automatic installer, but putting the files in their right places is very straighforward:
+Currently there is no automatic installer, but putting the files in their places is very straighforward:
 
 - `laskenta.cpp` -- Laskenta Library implementation
 - `laskenta.h` -- Laskenta API declarations used by `laskenta.cpp` and your application source file(s)
