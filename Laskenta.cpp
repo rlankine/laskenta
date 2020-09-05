@@ -362,7 +362,6 @@ private:
 
 ConstantNode const Expression::data::literal0(0);
 ConstantNode const Expression::data::literal1(1);
-ConstantNode const Expression::data::literal2(2);
 ConstantNode const Expression::data::literal3(3);
 ConstantNode const Expression::data::literal2Inv(1.0 / 2);
 ConstantNode const Expression::data::literal3Inv(1.0 / 3);
@@ -586,6 +585,7 @@ struct Cos final : public FunctionNode, private ObjectGuard<Cos>
 {
     Cos(Expression::data const* p) : FunctionNode(p, NodeType::COS) { }
 
+    Expression::data const* invert() const;
     Expression::data const* zconic() const override final;
 
     bool guaranteed(Expression::Attribute) const override final;
@@ -621,6 +621,8 @@ struct Sec final : public FunctionNode, private ObjectGuard<Sec>
     Sec(Expression::data const* p) : FunctionNode(p, NodeType::SEC) { }
 
     bool guaranteed(Expression::Attribute) const override final;
+
+    Expression::data const* invert() const;
 
     Expression::data const* derivative(Variable const&) const override final;
     double value() const override final;
@@ -871,6 +873,7 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
     Expression::data const* sin() const override final;
     Expression::data const* cos() const override final;
     Expression::data const* tan() const override final;
+    Expression::data const* sec() const override final;
     Expression::data const* asin() const override final;
     Expression::data const* atan() const override final;
     Expression::data const* sinh() const override final;
@@ -1173,6 +1176,7 @@ struct Pow final : public OperatorNode, private ObjectGuard<Pow>
     Expression::data const* sqrt() const override final;
     Expression::data const* cbrt() const override final;
     Expression::data const* invert() const override final;
+    Expression::data const* square() const override final;
     Expression::data const* mul(Expression::data const*) const override final;
     Expression::data const* commutative_mul(Expression::data const*) const override final;
     Expression::data const* pow(Expression::data const*) const override final;
@@ -1668,6 +1672,11 @@ Expression::data const* ConstantNode::sec() const
     return constant(1 / std::cos(n));
 }
 
+Expression::data const* Negate::sec() const  // sec(-x) ----> sec(x)
+{
+    return f_x->sec();
+}
+
 /***********************************************************************************************************************
 *** asin()
 ***********************************************************************************************************************/
@@ -1992,6 +2001,16 @@ Expression::data const* ConstantNode::invert() const
     return constant(1 / n);
 }
 
+Expression::data const* Cos::invert() const  // 1/cos(x) ----> sec(x)
+{
+    return f_x->sec();
+}
+
+Expression::data const* Sec::invert() const  // 1/sec(x) ----> cos(x)
+{
+    return f_x->cos();
+}
+
 Expression::data const* Invert::invert() const  // 1/(1/x) ----> x  ; iff x != 0
 {
     return f_x->guaranteed(Expression::Attribute::NONZERO) ? Clone(f_x) : Expression::data::invert();
@@ -2075,6 +2094,16 @@ Expression::data const* Negate::square() const  // (-x)^2 ----> x^2
     return f_x->square();
 }
 
+Expression::data const* Pow::square() const  // (x^y)^2 ---> x ^ (2*y)
+{
+    auto step0 = g_x->add(g_x);
+    auto step1 = f_x->pow(step0);
+
+    Erase(step0);
+
+    return step1;
+}
+
 /***********************************************************************************************************************
 *** xconic()
 ***********************************************************************************************************************/
@@ -2152,7 +2181,7 @@ Expression::data const* ConstantNode::zconic() const
     return constant(std::sqrt(1 - n * n));
 }
 
-Expression::data const* Abs::zconic() const  // abs(sqrt(1-x*x)) ----> sqrt(1-x*X)
+Expression::data const* Abs::zconic() const  // abs(sqrt(1-x*x)) ----> sqrt(1-x*x)
 {
     return f_x->zconic();
 }
@@ -2533,7 +2562,7 @@ Expression::data const* Invert::pow(Expression::data const* p) const  // (1/f_x)
 
 Expression::data const* Square::pow(Expression::data const* p) const  // (f_x^2) ^ p  ---->  f_x ^ (2*p)
 {
-    auto step0 = p->mul(literal2);
+    auto step0 = p->add(p);
     auto step1 = f_x->pow(step0);
 
     Erase(step0);
@@ -2595,7 +2624,7 @@ Expression::data const* Sqrt::derivative(Variable const& r) const
     // D(sqrt(f_x)) = D(f_x) * 1/(2*sqrt(f_x))
 
     auto step0 = f_x->derive(r);
-    auto step1 = mul(literal2);
+    auto step1 = add(this);
     auto step2 = step1->invert();
     auto step3 = step0->mul(step2);
 
@@ -2913,7 +2942,7 @@ Expression::data const* Square::derivative(Variable const& r) const
     // D(f_x^2) = D(f_x) * 2*f_x
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->mul(literal2);
+    auto step1 = f_x->add(f_x);
     auto step2 = step0->mul(step1);
 
     Erase(step0);
