@@ -58,4 +58,4 @@ TODO
 
 ## Links & footnotes
 
-If you wish to contact the author you may send email to laskenta.library@gmail.com .
+If you wish to contact the author you may send email to: laskenta.library@gmail.com
