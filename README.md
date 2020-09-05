@@ -15,9 +15,7 @@ Currently there is no automatic installer, but putting the files in their right 
 I recommend copying the header files (`laskenta.h` and `tools.h`) either into the directory of your common shared global header files, or into the same directory in which your project resides.  The implementation file (`laskenta.cpp`) should be copied into the same directory with your project source files.  The demo application can serve as a starting point for learning and exploration in which case it should be the main source file in its own project directory.
 
 #### Getting started
-After installing you may want to take a look at the `demo.cpp` application.  It demonstrates all typical uses of the Laskenta Library in C++ source code.
-
-A more detailed manual is planned to be written.
+After installing you may want to take a look at the `demo.cpp` application.  It demonstrates all typical uses of the Laskenta Library in C++ source code.  A more detailed manual is planned to be written.
 
 ## Applicability
 Calculating differentials of even just moderately complex mathematical expressions by hand is very tedious, time consuming, and error prone.  Using a tool such as MATLAB or Mathematica for the tedious part still costs time and leaves room for errors when incorporating the resultant formulae into an application program.  One other method known as Automatic Differentiation (a.k.a *autodiff*) is currently perhaps the most common solution because it can compute derivatives automatically alongside the formula being computed and hence requires very little effort from the application programmer.  What it lacks is versatility when it comes to dealing with multiple variables or higher order derivatives.
