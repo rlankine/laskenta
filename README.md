@@ -12,7 +12,7 @@ Currently there is no automatic install helper, but putting the files in their r
 - `tools.h` -- General purpose development helpers used by `laskenta.cpp`
 - `demo.cpp` -- Small demo application about Laskenta Library capabilities
 
-I recommend copying the header files (`laskenta.h` and `tools.h`) either into the directory of your common shared global header files, or into the same directory with your project resides.  The implementation file (`laskenta.cpp`) should be copied into the same directory with your project source files.  The demo application can serve as a starting point for learning and exploration in which case it should be the main source file in its own project directory.
+I recommend copying the header files (`laskenta.h` and `tools.h`) either into the directory of your common shared global header files, or into the same directory in which your project resides.  The implementation file (`laskenta.cpp`) should be copied into the same directory with your project source files.  The demo application can serve as a starting point for learning and exploration in which case it should be the main source file in its own project directory.
 
 ## Getting started
 TODO
