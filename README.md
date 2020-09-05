@@ -21,6 +21,8 @@ TODO
 * Sensor Fusion
 * Robotics, inverse kinematics
 * Modelling the real world
+* Integrals
+* Differential equations
 * Curve fitting
   * Test
 - Test
