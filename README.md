@@ -26,8 +26,8 @@ Finally, because of its versatility the Laskenta Library is an enabler to many a
 
 #### Some application areas:
 * Mathematics
-  * dynamic system modeling and analysis
   * numerical solving and optimization
+  * dynamic system modeling and analysis
   * approximating difficult inverse functions
   * approximating difficult integrals as Expression objects where the range can be freely varied after construction (not as plain numerical value of a fixed range the way trapezoid or Monte Carlo methods would do)
 * Navigation
