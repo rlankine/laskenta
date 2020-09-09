@@ -24,8 +24,6 @@ Laskenta Library can manipulate highly complex mathematical expressions and it d
 
 Finally, because of its versatility the Laskenta Library is an enabler to many algorithms that currently appear only on paper.  It can easily and efficiently compute Jacobian vectors and Hessian matrices of multivariable expressions.  It can easily compute second or third or any higher derivative of an expression making it possible to chain various mathematical methods that need to derive formulas in succession.
 
-For example, consider training a neural network Expression using *gradient descent* (=1st order derivatives of all weights and biases) and Variable descend rate; then find a value for the descend rate that *minimizes* (=2rd order derivative) the objective function along the current gradient; then using *Newton-Raphson* (=3th order derivative) method to find the root of the derivative which gives the optimum descend rate that takes the gradient descent "straight to the bottom of the valley".  Explicit back propagation is not even needed because all weights and biases can be updated using first `snapshot[i] = w[i]-rate*objective.Derive(w[i])` for all, and then `w[i] = snapshot[i]` for all.
-
 #### Some application areas:
 * Mathematics
   * numerical solving and optimization
