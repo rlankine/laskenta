@@ -34,9 +34,9 @@ Finally, because of its versatility the Laskenta Library is an enabler to many a
   * sensor fusion and kalman filter
   * simultaneous locating and mapping by tracking scenery artifacts
 * Neural networks
-  * easily implement unconventional activation or objective functions
+  * easily experiment with arbitrary activation functions and objective functions
   * easily implement irregular network topologies
-  * removes the need to develop explicit back-propagation algorithms
+  * eliminates the need to develop explicit back-propagation algorithms
 * Photogrammetry
   * bundle adjustment
 * Prediction
