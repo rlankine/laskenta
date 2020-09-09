@@ -22,7 +22,7 @@ Calculating differentials of even just moderately complex mathematical expressio
 
 Laskenta Library can manipulate highly complex mathematical expressions and it does this very efficiently.  It suits particularly well for rapid prototyping because it is many times quicker than traditional methods in generating correct expressions, but it certainly is not lacking power for actual applications as well.  It performs computations very efficiently because of its extensive common subexpression detection and sharing.  Sharing common subexpression not only saves memory, but more importantly it facilitates intermediate value caching during expression evaluation.  Even multiple separate expressions operating on the same set of variables are interlaced so that a side effect of evaluating one expression is the reduction of time needed to evaluate other expressions because they can now utilize the precomputed intermediate values from cache.
 
-Because of its versatility the Laskenta Library is an enabler to many algorithms that currently appear only on paper.
+*Because of its versatility the Laskenta Library is an enabler to many algorithms that currently appear only on paper.*
 
 #### Some application areas:
 * Mathematics
