@@ -28,7 +28,7 @@ Finally, because of its versatility the Laskenta Library is an enabler to many a
 * Mathematics
   * dynamic system modeling and analysis
   * numerical solving and optimization
-  * approximating difficult integrals as expressions (not just numeric values the way trapezoid or Monte Carlo would produce)
+  * approximating difficult integrals as re-evaluable expressions where the limits can vary (not as plain numerical values the way trapezoid or Monte Carlo methods would do)
   * approximating difficult inverse functions
 * Navigation
   * sensor fusion and kalman filter
