@@ -37,6 +37,9 @@ using std::endl;
 
 //**********************************************************************************************************************
 
+using Attr = Expression::Attribute;
+using Expr = Expression::data;
+
 struct ConstantNode;
 
 /***********************************************************************************************************************
@@ -47,56 +50,56 @@ struct Expression::data : public Shared
 {
     // Primitives
 
-    static Expression::data const* constant(double);
-    static Expression::data const* variable(Variable const&);
+    static Expr const* constant(double);
+    static Expr const* variable(Variable const&);
 
     // Functions
 
-    virtual Expression::data const* abs() const;
-    virtual Expression::data const* sign() const;
-    virtual Expression::data const* sqrt() const;
-    virtual Expression::data const* cbrt() const;
-    virtual Expression::data const* exp() const;
-    virtual Expression::data const* log() const;
-    virtual Expression::data const* sin() const;
-    virtual Expression::data const* cos() const;
-    virtual Expression::data const* tan() const;
-    virtual Expression::data const* asin() const;
-    virtual Expression::data const* acos() const;
-    virtual Expression::data const* atan() const;
-    virtual Expression::data const* sinh() const;
-    virtual Expression::data const* cosh() const;
-    virtual Expression::data const* tanh() const;
-    virtual Expression::data const* asinh() const;
-    virtual Expression::data const* acosh() const;
-    virtual Expression::data const* atanh() const;
-    virtual Expression::data const* erf() const;
-    virtual Expression::data const* invert() const;
-    virtual Expression::data const* negate() const;
-    virtual Expression::data const* secant() const;
-    virtual Expression::data const* softpp() const;
-    virtual Expression::data const* spence() const;
-    virtual Expression::data const* square() const;
-    virtual Expression::data const* xconic() const;
-    virtual Expression::data const* yconic() const;
-    virtual Expression::data const* zconic() const;
+    virtual Expr const* abs() const;
+    virtual Expr const* sign() const;
+    virtual Expr const* sqrt() const { return function(NodeType::SQRT); }
+    virtual Expr const* cbrt() const { return function(NodeType::CBRT); }
+    virtual Expr const* exp() const { return function(NodeType::EXP); }
+    virtual Expr const* log() const { return function(NodeType::LOG); }
+    virtual Expr const* sin() const { return function(NodeType::SIN); }
+    virtual Expr const* cos() const { return function(NodeType::COS); }
+    virtual Expr const* tan() const { return function(NodeType::TAN); }
+    virtual Expr const* asin() const { return function(NodeType::ASIN); }
+    virtual Expr const* acos() const { return function(NodeType::ACOS); }
+    virtual Expr const* atan() const { return function(NodeType::ATAN); }
+    virtual Expr const* sinh() const { return function(NodeType::SINH); }
+    virtual Expr const* cosh() const { return function(NodeType::COSH); }
+    virtual Expr const* tanh() const { return function(NodeType::TANH); }
+    virtual Expr const* asinh() const { return function(NodeType::ASINH); }
+    virtual Expr const* acosh() const { return function(NodeType::ACOSH); }
+    virtual Expr const* atanh() const { return function(NodeType::ATANH); }
+    virtual Expr const* erf() const { return function(NodeType::ERF); }
+    virtual Expr const* invert() const { return function(NodeType::INVERT); }
+    virtual Expr const* negate() const { return function(NodeType::NEGATE); }
+    virtual Expr const* secant() const { return function(NodeType::SECANT); }
+    virtual Expr const* softpp() const { return function(NodeType::SOFTPP); }
+    virtual Expr const* spence() const { return function(NodeType::SPENCE); }
+    virtual Expr const* square() const { return function(NodeType::SQUARE); }
+    virtual Expr const* xconic() const { return function(NodeType::XCONIC); }
+    virtual Expr const* yconic() const { return function(NodeType::YCONIC); }
+    virtual Expr const* zconic() const { return function(NodeType::ZCONIC); }
 
     // Operators
 
-    virtual Expression::data const* add(Expression::data const*) const;
-    virtual Expression::data const* commutative_add(Expression::data const*) const;
-    virtual Expression::data const* mul(Expression::data const*) const;
-    virtual Expression::data const* commutative_mul(Expression::data const*) const;
-    virtual Expression::data const* pow(Expression::data const*) const;
+    virtual Expr const* add(Expr const*) const;
+    virtual Expr const* commutative_add(Expr const*) const;
+    virtual Expr const* mul(Expr const*) const;
+    virtual Expr const* commutative_mul(Expr const*) const;
+    virtual Expr const* pow(Expr const*) const;
 
     // Evaluation and derivation
 
-    Expression::data const* derive(Variable const& r) const { return Clone(cachedNode ? cachedNode : cachedNode = derivative(r)); }
+    Expr const* derive(Variable const& r) const { return Clone(cachedNode ? cachedNode : cachedNode = derivative(r)); }
     double evaluate() const { if (cleanLevel != dirtyLevel) { valueCache = value(); cleanLevel = dirtyLevel; } return valueCache; }
 
     // Analysis tools
 
-    virtual bool guaranteed(Expression::Attribute) const = 0; // { return false; }
+    virtual bool guaranteed(Attr) const = 0; // { return false; }
 
     enum class NodeType
     {
@@ -105,26 +108,26 @@ struct Expression::data : public Shared
     };
 
     virtual bool is(NodeType) const = 0;
-    virtual bool is(NodeType, Expression::data const*) const = 0;
+    virtual bool is(NodeType, Expr const*) const = 0;
 
     virtual bool easyInvert() const { return false; }
     virtual bool easyNegate() const { return false; }
 
     // Cache management
 
-    mutable std::map<NodeType, Expression::data const*> functionNode;
-    mutable std::map<Expression::data const*, Expression::data const*> addNode;
-    mutable std::map<Expression::data const*, Expression::data const*> mulNode;
-    mutable std::map<Expression::data const*, Expression::data const*> powNode;
+    mutable std::map<NodeType, Expr const*> functionNode;
+    mutable std::map<Expr const*, Expr const*> addNode;
+    mutable std::map<Expr const*, Expr const*> mulNode;
+    mutable std::map<Expr const*, Expr const*> powNode;
 
     // Miscellaneous
 
     int32_t const depth;
     static size_t dirtyLevel;
-    mutable Expression::data const* cachedNode;
+    mutable Expr const* cachedNode;
     virtual void purge() const { if (cachedNode) { Erase(cachedNode); cachedNode = nullptr; } }
 
-    operator Expression::data const* () const;
+    operator Expr const* () const;
 
     virtual void print(std::ostream& r) const = 0;
 
@@ -132,8 +135,8 @@ protected:
     explicit data(int32_t n) : depth(n), cachedNode(nullptr), cleanLevel(0), valueCache(0) { }
     virtual ~data() { }
 
-    static std::unordered_map<double, Expression::data const*> constantNode;
-    static std::unordered_map<Variable::data const*, Expression::data const*> variableNode;
+    static std::unordered_map<double, Expr const*> constantNode;
+    static std::unordered_map<Variable::data const*, Expr const*> variableNode;
 
     static ConstantNode const literal0;
     static ConstantNode const literal1;
@@ -148,17 +151,17 @@ private:
     mutable size_t cleanLevel;
     mutable double valueCache;
 
-    virtual Expression::data const* derivative(Variable const&) const = 0;
+    virtual Expr const* derivative(Variable const&) const = 0;
     virtual double value() const = 0;
 
-    Expression::data const* function(NodeType n) const;
+    Expr const* function(NodeType n) const;
 
     void* operator new(size_t n) { return ::operator new(n); }
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-Expression::data::operator Expression::data const* () const
+Expression::data::operator Expr const* () const
 {
     return this;
 }
@@ -166,25 +169,25 @@ Expression::data::operator Expression::data const* () const
 //----------------------------------------------------------------------------------------------------------------------
 
 size_t Expression::data::dirtyLevel = 1LL;
-std::unordered_map<double, Expression::data const*> Expression::data::constantNode;
-std::unordered_map<Variable::data const*, Expression::data const*> Expression::data::variableNode;
+std::unordered_map<double, Expr const*> Expression::data::constantNode;
+std::unordered_map<Variable::data const*, Expr const*> Expression::data::variableNode;
 
 /***********************************************************************************************************************
 *** FunctionNode
 ***********************************************************************************************************************/
 
-struct FunctionNode : public Expression::data
+struct FunctionNode : public Expr
 {
-    FunctionNode(Expression::data const*, NodeType);
+    FunctionNode(Expr const*, NodeType);
     virtual ~FunctionNode();
 
     bool is(NodeType) const override final;
-    bool is(NodeType, Expression::data const*) const override final;
+    bool is(NodeType, Expr const*) const override final;
 
     void purge() const override final;
 
 protected:
-    Expression::data const* const f_x;
+    Expr const* const f_x;
 
 private:
     NodeType const fn;
@@ -192,7 +195,7 @@ private:
 
 //----------------------------------------------------------------------------------------------------------------------
 
-FunctionNode::FunctionNode(Expression::data const* p, NodeType n) : Expression::data(p->depth + 1), f_x(p), fn(n)
+FunctionNode::FunctionNode(Expr const* p, NodeType n) : Expr(p->depth + 1), f_x(p), fn(n)
 {
     assert(f_x->functionNode.find(fn) == f_x->functionNode.end());
 
@@ -212,7 +215,7 @@ bool FunctionNode::is(NodeType t) const
     return t == fn;
 }
 
-bool FunctionNode::is(NodeType t, Expression::data const* p) const
+bool FunctionNode::is(NodeType t, Expr const* p) const
 {
     return t == fn && p == f_x;
 }
@@ -221,7 +224,7 @@ void FunctionNode::purge() const
 {
     if (cachedNode)
     {
-        Expression::data::purge();
+        Expr::purge();
         f_x->purge();
     }
 }
@@ -230,18 +233,18 @@ void FunctionNode::purge() const
 *** OperatorNode
 ***********************************************************************************************************************/
 
-struct OperatorNode : public Expression::data
+struct OperatorNode : public Expr
 {
-    OperatorNode(Expression::data const* p, Expression::data const* q) : Expression::data(std::max(p->depth, q->depth) + 1), f_x(p), g_x(q) { }
+    OperatorNode(Expr const* p, Expr const* q) : Expr(std::max(p->depth, q->depth) + 1), f_x(p), g_x(q) { }
     virtual ~OperatorNode();
 
-    bool is(NodeType, Expression::data const*) const override final;
+    bool is(NodeType, Expr const*) const override final;
 
     void purge() const override final;
 
 protected:
-    Expression::data const* const f_x;
-    Expression::data const* const g_x;
+    Expr const* const f_x;
+    Expr const* const g_x;
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -252,7 +255,7 @@ OperatorNode::~OperatorNode()
     Erase(g_x);
 }
 
-bool OperatorNode::is(NodeType t, Expression::data const* p) const
+bool OperatorNode::is(NodeType t, Expr const* p) const
 {
     return false;
 }
@@ -261,7 +264,7 @@ void OperatorNode::purge() const
 {
     if (cachedNode)
     {
-        Expression::data::purge();
+        Expr::purge();
         f_x->purge();
         g_x->purge();
     }
@@ -271,27 +274,27 @@ void OperatorNode::purge() const
 *** NullExpression
 ***********************************************************************************************************************/
 
-struct NullExpression final : public Expression::data
+struct NullExpression final : public Expr
 {
     static NullExpression const instance;
 
     // Empty expression starts in 'quantum state' -- It behaves like '0' if added anything or '1' if multiplied by anything:
 
-    Expression::data const* add(Expression::data const* p) const override final { return Clone(p); }
-    Expression::data const* mul(Expression::data const* p) const override final { return Clone(p); }
+    Expr const* add(Expr const* p) const override final { return Clone(p); }
+    Expr const* mul(Expr const* p) const override final { return Clone(p); }
 
-    bool guaranteed(Expression::Attribute) const override final { return false; }
+    bool guaranteed(Attr) const override final { return false; }
 
     bool is(NodeType) const override final { return false; }
-    bool is(NodeType, Expression::data const*) const override final { return false; }
+    bool is(NodeType, Expr const*) const override final { return false; }
 
-    Expression::data const* derivative(Variable const&) const override final { return Clone(this); }
+    Expr const* derivative(Variable const&) const override final { return Clone(this); }
     double value() const override final { FAIL("Attempt was made to evaluate uninitialized Expression object"); }
 
     void print(std::ostream& out) const override final {}
 
 private:
-    NullExpression() : Expression::data(0) { }
+    NullExpression() : Expr(0) { }
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -302,56 +305,56 @@ NullExpression const NullExpression::instance;
 *** ConstantNode
 ***********************************************************************************************************************/
 
-struct ConstantNode final : public Expression::data, private ObjectGuard<ConstantNode>
+struct ConstantNode final : public Expr, private ObjectGuard<ConstantNode>
 {
     explicit ConstantNode(double);
     virtual ~ConstantNode();
 
-    Expression::data const* abs() const override final;
-    Expression::data const* sign() const override final;
-    Expression::data const* sqrt() const override final;
-    Expression::data const* cbrt() const override final;
-    Expression::data const* exp() const override final;
-    Expression::data const* log() const override final;
-    Expression::data const* sin() const override final;
-    Expression::data const* cos() const override final;
-    Expression::data const* tan() const override final;
-    Expression::data const* asin() const override final;
-    Expression::data const* acos() const override final;
-    Expression::data const* atan() const override final;
-    Expression::data const* sinh() const override final;
-    Expression::data const* cosh() const override final;
-    Expression::data const* tanh() const override final;
-    Expression::data const* asinh() const override final;
-    Expression::data const* acosh() const override final;
-    Expression::data const* atanh() const override final;
-    Expression::data const* erf() const override final;
-    Expression::data const* invert() const override final;
-    Expression::data const* negate() const override final;
-    Expression::data const* secant() const override final;
-    Expression::data const* softpp() const override final;
-    Expression::data const* spence() const override final;
-    Expression::data const* square() const override final;
-    Expression::data const* xconic() const override final;
-    Expression::data const* yconic() const override final;
-    Expression::data const* zconic() const override final;
+    Expr const* abs() const override final { return constant(std::abs(n)); }
+    Expr const* sign() const override final { return constant(::sign(n)); }
+    Expr const* sqrt() const override final { return constant(std::sqrt(n)); }
+    Expr const* cbrt() const override final { return constant(std::cbrt(n)); }
+    Expr const* exp() const override final { return constant(std::exp(n)); }
+    Expr const* log() const override final { return constant(std::log(n)); }
+    Expr const* sin() const override final { return constant(std::sin(n)); }
+    Expr const* cos() const override final { return constant(std::cos(n)); }
+    Expr const* tan() const override final { return constant(std::tan(n)); }
+    Expr const* asin() const override final { return constant(std::asin(n)); }
+    Expr const* acos() const override final { return constant(std::acos(n)); }
+    Expr const* atan() const override final { return constant(std::atan(n)); }
+    Expr const* sinh() const override final { return constant(std::sinh(n)); }
+    Expr const* cosh() const override final { return constant(std::cosh(n)); }
+    Expr const* tanh() const override final { return constant(std::tanh(n)); }
+    Expr const* asinh() const override final { return constant(std::asinh(n)); }
+    Expr const* acosh() const override final { return constant(std::acosh(n)); }
+    Expr const* atanh() const override final { return constant(std::atanh(n)); }
+    Expr const* erf() const override final { return constant(std::erf(n)); }
+    Expr const* invert() const override final { return constant(1 / n); }
+    Expr const* negate() const override final { return constant(-n); }
+    Expr const* secant() const override final { return constant(1 / std::cos(n)); }
+    Expr const* softpp() const override final { return constant(::ISp(n)); }
+    Expr const* spence() const override final { return constant(::Li2(n)); }
+    Expr const* square() const override final { return constant(n * n); }
+    Expr const* xconic() const override final { return constant(std::sqrt(n * n - 1)); }
+    Expr const* yconic() const override final { return constant(std::sqrt(1 + n * n)); }
+    Expr const* zconic() const override final { return constant(std::sqrt(1 - n * n)); }
 
-    Expression::data const* add(Expression::data const*) const override final;
-    Expression::data const* commutative_add(Expression::data const*) const override final;
-    Expression::data const* mul(Expression::data const*) const override final;
-    Expression::data const* commutative_mul(Expression::data const*) const override final;
-    Expression::data const* pow(Expression::data const*) const override final;
+    Expr const* add(Expr const*) const override final;
+    Expr const* commutative_add(Expr const*) const override final;
+    Expr const* mul(Expr const*) const override final;
+    Expr const* commutative_mul(Expr const*) const override final;
+    Expr const* pow(Expr const*) const override final;
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
     bool is(NodeType t) const override final { return t == NodeType::CONSTANT; }
-    bool is(NodeType t, Expression::data const* p) const override final { return t == NodeType::CONSTANT && p == this; }
+    bool is(NodeType t, Expr const* p) const override final { return t == NodeType::CONSTANT && p == this; }
 
     bool easyInvert() const override final { return n != 0; }
     bool easyNegate() const override final { return true; }
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return n; }
 
     void print(std::ostream&) const override final;
 
@@ -363,6 +366,7 @@ private:
 
 ConstantNode const Expression::data::literal0(0);
 ConstantNode const Expression::data::literal1(1);
+ConstantNode const Expression::data::literal2(2);
 ConstantNode const Expression::data::literal3(3);
 ConstantNode const Expression::data::literal2Inv(1.0 / 2);
 ConstantNode const Expression::data::literal3Inv(1.0 / 3);
@@ -371,7 +375,7 @@ ConstantNode const Expression::data::erfDiffConst(1.0 / std::sqrt(std::atan(1)))
 
 //----------------------------------------------------------------------------------------------------------------------
 
-ConstantNode::ConstantNode(double d) : Expression::data(0), n(d)
+ConstantNode::ConstantNode(double d) : Expr(0), n(d)
 {
     assert(constantNode.find(n) == constantNode.end());
 
@@ -385,7 +389,7 @@ ConstantNode::~ConstantNode()
     constantNode.erase(n);
 }
 
-Expression::data const* Expression::data::constant(double d)
+Expr const* Expression::data::constant(double d)
 {
     auto node = constantNode.find(d);
 
@@ -396,18 +400,18 @@ Expression::data const* Expression::data::constant(double d)
 *** VariableNode
 ***********************************************************************************************************************/
 
-struct VariableNode final : public Expression::data, private ObjectGuard<VariableNode>
+struct VariableNode final : public Expr, private ObjectGuard<VariableNode>
 {
     explicit VariableNode(Variable const&);
     virtual ~VariableNode();
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
     bool is(NodeType t) const override final { return t == NodeType::VARIABLE; }
-    bool is(NodeType t, Expression::data const* p) const override final { return t == NodeType::VARIABLE && p == this; }
+    bool is(NodeType t, Expr const* p) const override final { return t == NodeType::VARIABLE && p == this; }
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return double(x); }
 
     void print(std::ostream&) const override final;
 
@@ -417,7 +421,7 @@ private:
 
 //----------------------------------------------------------------------------------------------------------------------
 
-VariableNode::VariableNode(Variable const& r) : Expression::data(1), x(r)
+VariableNode::VariableNode(Variable const& r) : Expr(1), x(r)
 {
     assert(variableNode.find(x.id()) == variableNode.end());
 
@@ -431,7 +435,7 @@ VariableNode::~VariableNode()
     variableNode.erase(x.id());
 }
 
-Expression::data const* Expression::data::variable(Variable const& r)
+Expr const* Expression::data::variable(Variable const& r)
 {
     auto node = variableNode.find(r.id());
 
@@ -444,20 +448,20 @@ Expression::data const* Expression::data::variable(Variable const& r)
 
 struct Abs final : public FunctionNode, private ObjectGuard<Abs>
 {
-    Abs(Expression::data const* p) : FunctionNode(p, NodeType::ABS) { }
+    Abs(Expr const* p) : FunctionNode(p, NodeType::ABS) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* sign() const override final;
-    Expression::data const* cos() const override final;
-    Expression::data const* cosh() const override final;
-    Expression::data const* square() const override final;
-    Expression::data const* yconic() const override final;
-    Expression::data const* zconic() const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* sign() const override final;
+    Expr const* cos() const override final { return f_x->cos(); }
+    Expr const* cosh() const override final { return f_x->cosh(); }
+    Expr const* square() const override final { return f_x->square(); }
+    Expr const* yconic() const override final { return f_x->yconic(); }
+    Expr const* zconic() const override final { return f_x->zconic(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::abs(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -468,16 +472,16 @@ struct Abs final : public FunctionNode, private ObjectGuard<Abs>
 
 struct Sign final : public FunctionNode, private ObjectGuard<Sign>
 {
-    Sign(Expression::data const* p) : FunctionNode(p, NodeType::SIGN) { }
+    Sign(Expr const* p) : FunctionNode(p, NodeType::SIGN) { }
 
-    Expression::data const* sign() const override final;
-    Expression::data const* sqrt() const override final;
-    Expression::data const* cbrt() const override final;
+    Expr const* sign() const override final { return Clone(this); }
+    Expr const* sqrt() const override final;
+    Expr const* cbrt() const override final { return Clone(this); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return ::sign(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -488,16 +492,17 @@ struct Sign final : public FunctionNode, private ObjectGuard<Sign>
 
 struct Sqrt final : public FunctionNode, private ObjectGuard<Sqrt>
 {
-    Sqrt(Expression::data const* p) : FunctionNode(p, NodeType::SQRT) { }
+    Sqrt(Expr const* p) : FunctionNode(p, NodeType::SQRT) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* square() const override final;
-    Expression::data const* pow(Expression::data const*) const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* square() const override final { return f_x->guaranteed(Attr::NONNEGATIVE) ? Clone(f_x) : Expr::square(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal2Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    bool guaranteed(Attr) const override final;
+
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::sqrt(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -508,15 +513,15 @@ struct Sqrt final : public FunctionNode, private ObjectGuard<Sqrt>
 
 struct Cbrt final : public FunctionNode, private ObjectGuard<Cbrt>
 {
-    Cbrt(Expression::data const* p) : FunctionNode(p, NodeType::CBRT) { }
+    Cbrt(Expr const* p) : FunctionNode(p, NodeType::CBRT) { }
 
-    Expression::data const* sign() const override final;
-    Expression::data const* pow(Expression::data const*) const override final;
+    Expr const* sign() const override final { return f_x->sign(); }
+    Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal3Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::cbrt(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -527,17 +532,17 @@ struct Cbrt final : public FunctionNode, private ObjectGuard<Cbrt>
 
 struct Exp final : public FunctionNode, private ObjectGuard<Exp>
 {
-    Exp(Expression::data const* p) : FunctionNode(p, NodeType::EXP) { }
+    Exp(Expr const* p) : FunctionNode(p, NodeType::EXP) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* sign() const override final;
-    Expression::data const* log() const override final;
-    Expression::data const* pow(Expression::data const*) const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* sign() const override final { return Clone(literal1); }
+    Expr const* log() const override final { return Clone(f_x); }
+    Expr const* pow(Expr const* p) const override final { auto step0 = f_x->mul(p); auto step1 = step0->exp();  Erase(step0); return step1; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::exp(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -548,14 +553,17 @@ struct Exp final : public FunctionNode, private ObjectGuard<Exp>
 
 struct Log final : public FunctionNode, private ObjectGuard<Log>
 {
-    Log(Expression::data const* p) : FunctionNode(p, NodeType::LOG) { }
+    Log(Expr const* p) : FunctionNode(p, NodeType::LOG) { }
 
-    Expression::data const* exp() const override final;
+    Expr const* exp() const override final { return f_x->guaranteed(Attr::POSITIVE) ? Clone(f_x) : Expr::exp(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final
+    {
+        return std::log(f_x->evaluate());
+    }
 
     void print(std::ostream&) const override final;
 };
@@ -566,14 +574,14 @@ struct Log final : public FunctionNode, private ObjectGuard<Log>
 
 struct Sin final : public FunctionNode, private ObjectGuard<Sin>
 {
-    Sin(Expression::data const* p) : FunctionNode(p, NodeType::SIN) { }
+    Sin(Expr const* p) : FunctionNode(p, NodeType::SIN) { }
 
-    Expression::data const* zconic() const override final;
+    Expr const* zconic() const override final { auto step0 = f_x->cos(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::sin(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -584,15 +592,15 @@ struct Sin final : public FunctionNode, private ObjectGuard<Sin>
 
 struct Cos final : public FunctionNode, private ObjectGuard<Cos>
 {
-    Cos(Expression::data const* p) : FunctionNode(p, NodeType::COS) { }
+    Cos(Expr const* p) : FunctionNode(p, NodeType::COS) { }
 
-    Expression::data const* invert() const;
-    Expression::data const* zconic() const override final;
+    Expr const* invert() const { return f_x->secant(); }
+    Expr const* zconic() const override final { auto step0 = f_x->sin(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::cos(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -603,12 +611,12 @@ struct Cos final : public FunctionNode, private ObjectGuard<Cos>
 
 struct Tan final : public FunctionNode, private ObjectGuard<Tan>
 {
-    Tan(Expression::data const* p) : FunctionNode(p, NodeType::TAN) { }
+    Tan(Expr const* p) : FunctionNode(p, NodeType::TAN) { }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::tan(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -619,16 +627,17 @@ struct Tan final : public FunctionNode, private ObjectGuard<Tan>
 
 struct ASin final : public FunctionNode, private ObjectGuard<ASin>
 {
-    ASin(Expression::data const* p) : FunctionNode(p, NodeType::ASIN) { }
+    ASin(Expr const* p) : FunctionNode(p, NodeType::ASIN) { }
 
-    Expression::data const* sign() const override final;
-    Expression::data const* sin() const override final;
-    Expression::data const* cos() const override final;
+    Expr const* sign() const override final;
+    Expr const* sin() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? Clone(f_x) : Expr::sin(); }
+    Expr const* cos() const override final { return f_x->zconic(); }
+    Expr const* secant() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::asin(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -639,16 +648,17 @@ struct ASin final : public FunctionNode, private ObjectGuard<ASin>
 
 struct ACos final : public FunctionNode, private ObjectGuard<ACos>
 {
-    ACos(Expression::data const* p) : FunctionNode(p, NodeType::ACOS) { }
+    ACos(Expr const* p) : FunctionNode(p, NodeType::ACOS) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* sin() const override final;
-    Expression::data const* cos() const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* sin() const override final { return f_x->zconic(); }
+    Expr const* cos() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? Clone(f_x) : Expr::cos(); }
+    Expr const* secant() const override final { return f_x->invert(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::acos(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -659,16 +669,17 @@ struct ACos final : public FunctionNode, private ObjectGuard<ACos>
 
 struct ATan final : public FunctionNode, private ObjectGuard<ATan>
 {
-    ATan(Expression::data const* p) : FunctionNode(p, NodeType::ATAN) { }
+    ATan(Expr const* p) : FunctionNode(p, NodeType::ATAN) { }
 
-    Expression::data const* sign() const override final;
-    Expression::data const* cos() const override final;
-    Expression::data const* tan() const override final;
+    Expr const* sign() const override final { return f_x->sign(); }
+    Expr const* cos() const override final { auto step0 = f_x->yconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* tan() const override final { return Clone(f_x); }
+    Expr const* secant() const override final { return f_x->yconic(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::atan(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -679,16 +690,16 @@ struct ATan final : public FunctionNode, private ObjectGuard<ATan>
 
 struct SinH final : public FunctionNode, private ObjectGuard<SinH>
 {
-    SinH(Expression::data const* p) : FunctionNode(p, NodeType::SINH) { }
+    SinH(Expr const* p) : FunctionNode(p, NodeType::SINH) { }
 
-    Expression::data const* sign() const override final;
-    Expression::data const* asinh() const override final;
-    Expression::data const* yconic() const override final;
+    Expr const* sign() const override final { return f_x->sign(); }
+    Expr const* asinh() const override final { return Clone(f_x); }
+    Expr const* yconic() const override final { return f_x->cosh(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::sinh(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -699,17 +710,17 @@ struct SinH final : public FunctionNode, private ObjectGuard<SinH>
 
 struct CosH final : public FunctionNode, private ObjectGuard<CosH>
 {
-    CosH(Expression::data const* p) : FunctionNode(p, NodeType::COSH) { }
+    CosH(Expr const* p) : FunctionNode(p, NodeType::COSH) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* sign() const override final;
-    Expression::data const* acosh() const override final;
-    Expression::data const* xconic() const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* sign() const override final { return Clone(literal1); }
+    Expr const* acosh() const override final { return f_x->abs(); }
+    Expr const* xconic() const override final { auto step0 = f_x->sinh(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::cosh(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -720,15 +731,15 @@ struct CosH final : public FunctionNode, private ObjectGuard<CosH>
 
 struct TanH final : public FunctionNode, private ObjectGuard<TanH>
 {
-    TanH(Expression::data const* p) : FunctionNode(p, NodeType::TANH) { ; }
+    TanH(Expr const* p) : FunctionNode(p, NodeType::TANH) { ; }
 
-    Expression::data const* sign() const override final;
-    Expression::data const* atanh() const override final;
+    Expr const* sign() const override final { return f_x->sign(); }
+    Expr const* atanh() const override final { return Clone(f_x); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::tanh(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -739,17 +750,17 @@ struct TanH final : public FunctionNode, private ObjectGuard<TanH>
 
 struct ASinH final : public FunctionNode, private ObjectGuard<ASinH>
 {
-    ASinH(Expression::data const* p) : FunctionNode(p, NodeType::ASINH) { }
+    ASinH(Expr const* p) : FunctionNode(p, NodeType::ASINH) { }
 
-    Expression::data const* sign() const override final;
-    Expression::data const* exp() const override final;
-    Expression::data const* sinh() const override final;
-    Expression::data const* cosh() const override final;
+    Expr const* sign() const override final { return f_x->sign(); }
+    Expr const* exp() const override final { auto step0 = f_x->yconic(); auto step1 = f_x->add(step0); Erase(step0); return step1; }
+    Expr const* sinh() const override final { return Clone(f_x); }
+    Expr const* cosh() const override final { return f_x->yconic(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::asinh(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -760,16 +771,16 @@ struct ASinH final : public FunctionNode, private ObjectGuard<ASinH>
 
 struct ACosH final : public FunctionNode, private ObjectGuard<ACosH>
 {
-    ACosH(Expression::data const* p) : FunctionNode(p, NodeType::ACOSH) { }
+    ACosH(Expr const* p) : FunctionNode(p, NodeType::ACOSH) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* sinh() const override final;
-    Expression::data const* cosh() const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* sinh() const override final { return f_x->zconic(); }
+    Expr const* cosh() const override final { return f_x->guaranteed(Attr::POSITIVE) && f_x->guaranteed(Attr::ANTIOPENUNITRANGE) ? Clone(f_x) : Expr::cosh(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::acosh(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -780,16 +791,16 @@ struct ACosH final : public FunctionNode, private ObjectGuard<ACosH>
 
 struct ATanH final : public FunctionNode, private ObjectGuard<ATanH>
 {
-    ATanH(Expression::data const* p) : FunctionNode(p, NodeType::ATANH) { }
+    ATanH(Expr const* p) : FunctionNode(p, NodeType::ATANH) { }
 
-    Expression::data const* sign() const override final;
-    Expression::data const* cosh() const override final;
-    Expression::data const* tanh() const override final;
+    Expr const* sign() const override final;
+    Expr const* cosh() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* tanh() const override final { return f_x->guaranteed(Attr::OPENUNITRANGE) ? Clone(f_x) : Expr::tanh(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::atanh(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -800,14 +811,14 @@ struct ATanH final : public FunctionNode, private ObjectGuard<ATanH>
 
 struct Erf final : public FunctionNode, private ObjectGuard<Erf>
 {
-    Erf(Expression::data const* p) : FunctionNode(p, NodeType::ERF) { }
+    Erf(Expr const* p) : FunctionNode(p, NodeType::ERF) { }
 
-    Expression::data const* sign() const override final;
+    Expr const* sign() const override final { return f_x->sign(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::erf(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -818,25 +829,26 @@ struct Erf final : public FunctionNode, private ObjectGuard<Erf>
 
 struct Invert final : public FunctionNode, private ObjectGuard<Invert>
 {
-    Invert(Expression::data const* p) : FunctionNode(p, NodeType::INVERT) { }
+    Invert(Expr const* p) : FunctionNode(p, NodeType::INVERT) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* sign() const override final;
-    Expression::data const* sqrt() const override final;
-    Expression::data const* cbrt() const override final;
-    Expression::data const* log() const override final;
-    Expression::data const* invert() const override final;
-    Expression::data const* square() const override final;
-    Expression::data const* mul(Expression::data const*) const override final;
-    Expression::data const* pow(Expression::data const*) const override final;
+    Expr const* abs() const override final { auto step0 = f_x->abs(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* sign() const override final { auto step0 = f_x->sign(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* sqrt() const override final { auto step0 = f_x->sqrt(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* cbrt() const override final { auto step0 = f_x->cbrt(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* log() const override final { auto step0 = f_x->log(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* invert() const override final { return f_x->guaranteed(Attr::NONZERO) ? Clone(f_x) : Expr::invert(); }
+    Expr const* square() const override final { auto step0 = f_x->square(); auto step1 = step0->invert(); Erase(step0); return step1; }
+
+    Expr const* mul(Expr const*) const override final;
+    Expr const* pow(Expr const* p) const override final { auto step0 = f_x->pow(p); auto step1 = step0->invert(); Erase(step0); return step1; }
 
     bool easyInvert() const override final { return true; }
     bool easyNegate() const override final { if (f_x->easyNegate()) UNREACHABLE; return false; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return 1 / f_x->evaluate(); }
 
     void print(std::ostream&) const override final;
 };
@@ -847,40 +859,41 @@ struct Invert final : public FunctionNode, private ObjectGuard<Invert>
 
 struct Negate final : public FunctionNode, private ObjectGuard<Negate>
 {
-    Negate(Expression::data const* p) : FunctionNode(p, NodeType::NEGATE) { }
+    Negate(Expr const* p) : FunctionNode(p, NodeType::NEGATE) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* sign() const override final;
-    Expression::data const* cbrt() const override final;
-    Expression::data const* exp() const override final;
-    Expression::data const* sin() const override final;
-    Expression::data const* cos() const override final;
-    Expression::data const* tan() const override final;
-    Expression::data const* asin() const override final;
-    Expression::data const* atan() const override final;
-    Expression::data const* sinh() const override final;
-    Expression::data const* cosh() const override final;
-    Expression::data const* tanh() const override final;
-    Expression::data const* asinh() const override final;
-    Expression::data const* atanh() const override final;
-    Expression::data const* erf() const override final;
-    Expression::data const* invert() const override final;
-    Expression::data const* negate() const override final;
-    Expression::data const* secant() const override final;
-    Expression::data const* square() const override final;
-    Expression::data const* yconic() const override final;
-    Expression::data const* zconic() const override final;
+    Expr const* abs() const override final { return f_x->abs(); }
+    Expr const* sign() const override final { auto step0 = f_x->sign(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* cbrt() const override final { auto step0 = f_x->cbrt(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* exp() const override final { auto step0 = f_x->exp(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* sin() const override final { auto step0 = f_x->sin(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* cos() const override final { return f_x->cos(); }
+    Expr const* tan() const override final { auto step0 = f_x->tan(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* asin() const override final { auto step0 = f_x->asin(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* atan() const override final { auto step0 = f_x->atan(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* sinh() const override final { auto step0 = f_x->sinh(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* cosh() const override final { return f_x->cosh(); }
+    Expr const* tanh() const override final { auto step0 = f_x->tanh(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* asinh() const override final { auto step0 = f_x->asinh(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* atanh() const override final { auto step0 = f_x->atanh(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* erf() const override final { auto step0 = f_x->erf(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* invert() const override final { auto step0 = f_x->invert(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* negate() const override final { return Clone(f_x); }
+    Expr const* secant() const override final { return f_x->secant(); }
+    Expr const* square() const override final { return f_x->square(); }
+    Expr const* xconic() const override final { return f_x->xconic(); }
+    Expr const* yconic() const override final { return f_x->yconic(); }
+    Expr const* zconic() const override final { return f_x->zconic(); }
 
-    Expression::data const* add(Expression::data const*) const override final;
-    Expression::data const* mul(Expression::data const*) const override final;
+    Expr const* add(Expr const*) const override final;
+    Expr const* mul(Expr const*) const override final;
 
     bool easyInvert() const override final { return f_x->easyInvert(); }
     bool easyNegate() const override final { return true; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return -f_x->evaluate(); }
 
     void print(std::ostream&) const override final;
 };
@@ -891,14 +904,14 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
 
 struct Secant final : public FunctionNode, private ObjectGuard<Secant>
 {
-    Secant(Expression::data const* p) : FunctionNode(p, NodeType::SECANT) { }
+    Secant(Expr const* p) : FunctionNode(p, NodeType::SECANT) { }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    Expr const* invert() const { return f_x->cos(); }
 
-    Expression::data const* invert() const;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return 1 / std::cos(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -909,12 +922,12 @@ struct Secant final : public FunctionNode, private ObjectGuard<Secant>
 
 struct SoftPP final : public FunctionNode, private ObjectGuard<SoftPP>
 {
-    SoftPP(Expression::data const* p) : FunctionNode(p, NodeType::SOFTPP) { }
+    SoftPP(Expr const* p) : FunctionNode(p, NodeType::SOFTPP) { }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return ISp(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -925,12 +938,12 @@ struct SoftPP final : public FunctionNode, private ObjectGuard<SoftPP>
 
 struct Spence final : public FunctionNode, private ObjectGuard<Spence>
 {
-    Spence(Expression::data const* p) : FunctionNode(p, NodeType::SPENCE) { }
+    Spence(Expr const* p) : FunctionNode(p, NodeType::SPENCE) { }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return Li2(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -941,17 +954,18 @@ struct Spence final : public FunctionNode, private ObjectGuard<Spence>
 
 struct Square final : public FunctionNode, private ObjectGuard<Square>
 {
-    Square(Expression::data const* p) : FunctionNode(p, NodeType::SQUARE) { }
+    Square(Expr const* p) : FunctionNode(p, NodeType::SQUARE) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* sqrt() const override final;
-    Expression::data const* mul(Expression::data const*) const override final;
-    Expression::data const* commutative_mul(Expression::data const*) const override final;
-    Expression::data const* pow(Expression::data const*) const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* sqrt() const override final { return f_x->abs(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    Expr const* mul(Expr const*) const override final;
+    Expr const* commutative_mul(Expr const*) const override final;
+    Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal2); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
-    Expression::data const* derivative(Variable const&) const override final;
+    bool guaranteed(Attr) const override final;
+
+    Expr const* derivative(Variable const&) const override final;
     double value() const override final;
 
     void print(std::ostream&) const override final;
@@ -963,15 +977,15 @@ struct Square final : public FunctionNode, private ObjectGuard<Square>
 
 struct XConic final : public FunctionNode, private ObjectGuard<XConic>
 {
-    XConic(Expression::data const* p) : FunctionNode(p, NodeType::XCONIC) { }
+    XConic(Expr const* p) : FunctionNode(p, NodeType::XCONIC) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* asinh() const override final;
-    Expression::data const* yconic() const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* asinh() const override final { auto step0 = f_x->abs(); auto step1 = step0->acosh(); Erase(step0); return step1; }
+    Expr const* yconic() const override final { return f_x->guaranteed(Attr::ANTIOPENUNITRANGE) ? f_x->abs() : Expr::yconic(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
+    Expr const* derivative(Variable const&) const override final;
     double value() const override final;
 
     void print(std::ostream&) const override final;
@@ -983,15 +997,15 @@ struct XConic final : public FunctionNode, private ObjectGuard<XConic>
 
 struct YConic final : public FunctionNode, private ObjectGuard<YConic>
 {
-    YConic(Expression::data const* p) : FunctionNode(p, NodeType::YCONIC) { }
+    YConic(Expr const* p) : FunctionNode(p, NodeType::YCONIC) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* acosh() const override final;
-    Expression::data const* xconic() const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* acosh() const override final { auto step0 = f_x->asinh(); auto step1 = step0->abs(); Erase(step0); return step1; }
+    Expr const* xconic() const override final { return f_x->abs(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
+    Expr const* derivative(Variable const&) const override final;
     double value() const override final;
 
     void print(std::ostream&) const override final;
@@ -1003,16 +1017,16 @@ struct YConic final : public FunctionNode, private ObjectGuard<YConic>
 
 struct ZConic final : public FunctionNode, private ObjectGuard<ZConic>
 {
-    ZConic(Expression::data const* p) : FunctionNode(p, NodeType::ZCONIC) { }
+    ZConic(Expr const* p) : FunctionNode(p, NodeType::ZCONIC) { }
 
-    Expression::data const* abs() const override final;
-    Expression::data const* asin() const override final;
-    Expression::data const* acos() const override final;
-    Expression::data const* zconic() const override final;
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* asin() const override final { auto step0 = f_x->abs(); auto step1 = step0->acos(); Erase(step0); return step1; }
+    Expr const* acos() const override final { auto step0 = f_x->asin(); auto step1 = step0->abs(); Erase(step0); return step1; }
+    Expr const* zconic() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? f_x->abs() : Expr::zconic(); }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
+    Expr const* derivative(Variable const&) const override final;
     double value() const override final;
 
     void print(std::ostream&) const override final;
@@ -1022,7 +1036,7 @@ struct ZConic final : public FunctionNode, private ObjectGuard<ZConic>
 *** function()
 ***********************************************************************************************************************/
 
-Expression::data const* Expression::data::function(NodeType n) const
+Expr const* Expression::data::function(NodeType n) const
 {
     if (functionNode.find(n) != functionNode.end()) { return Clone(functionNode[n]); }
 
@@ -1122,28 +1136,28 @@ Expression::data const* Expression::data::function(NodeType n) const
 
 struct Add final : public OperatorNode, private ObjectGuard<Add>
 {
-    Add(Expression::data const*, Expression::data const*);
+    Add(Expr const*, Expr const*);
     virtual ~Add();
 
     double value() const override final;
 
-    Expression::data const* add(Expression::data const*) const override final;
-    Expression::data const* commutative_add(Expression::data const*) const override final;
-    Expression::data const* mul(Expression::data const*) const override final;
-    Expression::data const* commutative_mul(Expression::data const*) const override final;
+    Expr const* add(Expr const*) const override final;
+    Expr const* commutative_add(Expr const*) const override final;
+    Expr const* mul(Expr const*) const override final;
+    Expr const* commutative_mul(Expr const*) const override final;
 
     bool is(NodeType t) const override final { return t == NodeType::ADD; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
+    Expr const* derivative(Variable const&) const override final;
 
     void print(std::ostream&) const override final;
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-Add::Add(Expression::data const* p, Expression::data const* q) : OperatorNode(p, q)
+Add::Add(Expr const* p, Expr const* q) : OperatorNode(p, q)
 {
     assert(f_x->addNode.find(g_x) == f_x->addNode.end());
     assert(g_x->addNode.find(f_x) == g_x->addNode.end());
@@ -1167,17 +1181,17 @@ Add::~Add()
 
 struct Mul final : public OperatorNode, private ObjectGuard<Mul>
 {
-    Mul(Expression::data const* p, Expression::data const* q);
+    Mul(Expr const* p, Expr const* q);
     virtual ~Mul();
 
-    Expression::data const* mul(Expression::data const*) const override final;
-    Expression::data const* commutative_mul(Expression::data const*) const override final;
+    Expr const* mul(Expr const*) const override final;
+    Expr const* commutative_mul(Expr const*) const override final;
 
     bool is(NodeType t) const override final { return t == NodeType::MUL; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
+    Expr const* derivative(Variable const&) const override final;
     double value() const override final;
 
     void print(std::ostream&) const override final;
@@ -1185,7 +1199,7 @@ struct Mul final : public OperatorNode, private ObjectGuard<Mul>
 
 //----------------------------------------------------------------------------------------------------------------------
 
-Mul::Mul(Expression::data const* p, Expression::data const* q) : OperatorNode(p, q)
+Mul::Mul(Expr const* p, Expr const* q) : OperatorNode(p, q)
 {
     assert(f_x->mulNode.find(g_x) == f_x->mulNode.end());
     assert(g_x->mulNode.find(f_x) == g_x->mulNode.end());
@@ -1209,30 +1223,31 @@ Mul::~Mul()
 
 struct Pow final : public OperatorNode, private ObjectGuard<Pow>
 {
-    Pow(Expression::data const* p, Expression::data const* q);
+    Pow(Expr const* p, Expr const* q);
     virtual ~Pow();
 
-    Expression::data const* sqrt() const override final;
-    Expression::data const* cbrt() const override final;
-    Expression::data const* invert() const override final;
-    Expression::data const* square() const override final;
-    Expression::data const* mul(Expression::data const*) const override final;
-    Expression::data const* commutative_mul(Expression::data const*) const override final;
-    Expression::data const* pow(Expression::data const*) const override final;
+    Expr const* sqrt() const override final { auto step0 = g_x->mul(literal2Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+    Expr const* cbrt() const override final { auto step0 = g_x->mul(literal3Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+    Expr const* invert() const override final { auto step0 = g_x->negate(); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+    Expr const* square() const override final { auto step0 = g_x->mul(literal2); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+
+    Expr const* mul(Expr const*) const override final;
+    Expr const* commutative_mul(Expr const*) const override final;
+    Expr const* pow(Expr const* p) const override final { auto step0 = g_x->mul(p); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
     bool is(NodeType t) const override final { return t == NodeType::POW; }
 
-    bool guaranteed(Expression::Attribute) const override final;
+    bool guaranteed(Attr) const override final;
 
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::pow(f_x->evaluate(), g_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-Pow::Pow(Expression::data const* p, Expression::data const* q) : OperatorNode(p, q)
+Pow::Pow(Expr const* p, Expr const* q) : OperatorNode(p, q)
 {
     assert(f_x->powNode.find(g_x) == f_x->powNode.end());
 
@@ -1250,1076 +1265,88 @@ Pow::~Pow()
 *** abs()
 ***********************************************************************************************************************/
 
-Expression::data const* Expression::data::abs() const
+Expr const* Expression::data::abs() const
 {
-    if (guaranteed(Expression::Attribute::NONNEGATIVE)) return Clone(this);
-    if (guaranteed(Expression::Attribute::NONPOSITIVE)) return negate();
-
+    if (guaranteed(Attr::NONNEGATIVE)) return Clone(this);
+    if (guaranteed(Attr::NONPOSITIVE)) return negate();
     return function(NodeType::ABS);
-}
-
-Expression::data const* ConstantNode::abs() const
-{
-    return constant(std::abs(n));
-}
-
-Expression::data const* Abs::abs() const  // abs(abs(x)) ----> abs(x)
-{
-    return Clone(this);
-}
-
-Expression::data const* Sqrt::abs() const  // abs(sqrt(x)) ----> sqrt(x)
-{
-    return Clone(this);
-}
-
-Expression::data const* Exp::abs() const  // abs(exp(x)) ----> exp(x)
-{
-    return Clone(this);
-}
-
-Expression::data const* ACos::abs() const  // abs(acos(x)) ----> acos(x)
-{
-    return Clone(this);
-}
-
-Expression::data const* CosH::abs() const  // abs(cosh(x)) ----> cosh(x)
-{
-    return Clone(this);
-}
-
-Expression::data const* ACosH::abs() const  // abs(acosh(x)) ----> acosh(x)
-{
-    return Clone(this);
-}
-
-Expression::data const* Invert::abs() const  // abs(1/x) ----> 1/abs(x)
-{
-    auto step0 = f_x->abs();
-    auto step1 = step0->invert();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Negate::abs() const  // abs(-x) ----> abs(x)
-{
-    return f_x->abs();
-}
-
-Expression::data const* Square::abs() const  // abs(x^2) ----> x^2
-{
-    return Clone(this);
-}
-
-Expression::data const* XConic::abs() const  // abs(sqrt(x*x-1)) ----> sqrt(x*x-1)
-{
-    return Clone(this);
-}
-
-Expression::data const* YConic::abs() const  // abs(sqrt(x*x+1)) ----> sqrt(x*x+1)
-{
-    return Clone(this);
-}
-
-Expression::data const* ZConic::abs() const  // abs(sqrt(1-x*x)) ----> sqrt(1-x*x)
-{
-    return Clone(this);
 }
 
 /***********************************************************************************************************************
 *** sign()
 ***********************************************************************************************************************/
 
-Expression::data const* Expression::data::sign() const
+Expr const* Expression::data::sign() const
 {
-    if (guaranteed(Expression::Attribute::POSITIVE)) return Clone(literal1);
-    if (guaranteed(Expression::Attribute::NEGATIVE)) return Clone(literal1Neg);
+    if (guaranteed(Attr::POSITIVE)) return Clone(literal1);
+    if (guaranteed(Attr::NEGATIVE)) return Clone(literal1Neg);
     return function(NodeType::SIGN);
 }
 
-Expression::data const* ConstantNode::sign() const
-{
-    return constant(::sign(n));
-}
-
-Expression::data const* Abs::sign() const  // sign(abs(x)) ----> abs(sign(x))
+Expr const* Abs::sign() const  // sign(abs(x)) ----> abs(sign(x))
 {
     auto step0 = f_x->sign();
     auto step1 = step0->abs();
-
     Erase(step0);
-
     return step1;
 }
 
-Expression::data const* Sign::sign() const  // sign(sign(x)) ----> sign(x)
+Expr const* ASin::sign() const  // sign(asin(x)) ----> sign(x)  ; iff -1 <= x <= 1
 {
-    return Clone(this);
+    return f_x->guaranteed(Attr::UNITRANGE) ? f_x->sign() : Expr::sign();
 }
 
-Expression::data const* Cbrt::sign() const  // sign(cbrt(x)) ----> sign(x)
+Expr const* ATanH::sign() const  // sign(atanh(x)) -----> sign(x)  ; iff -1 < x < 1
 {
-    return f_x->sign();
-}
-
-Expression::data const* Exp::sign() const  // sign(exp(x)) ----> 1
-{
-    return Clone(literal1);
-}
-
-Expression::data const* ASin::sign() const  // sign(asin(x)) ----> sign(x)  ; iff -1 <= x <= 1
-{
-    return f_x->guaranteed(Expression::Attribute::UNITRANGE) ? f_x->sign() : Expression::data::sign();
-}
-
-Expression::data const* ATan::sign() const  // sign(atan(x)) ----> sign(x)
-{
-    return f_x->sign();
-}
-
-Expression::data const* SinH::sign() const  // sign(sinh(x)) ----> sign(x)
-{
-    return f_x->sign();
-}
-
-Expression::data const* CosH::sign() const  // sign(cosh(x)) ----> 1
-{
-    return Clone(literal1);
-}
-
-Expression::data const* TanH::sign() const  // sign(tanh(x)) ----> sign(x)
-{
-    return f_x->sign();
-}
-
-Expression::data const* ASinH::sign() const  // sign(asinh(x)) ----> sign(x)
-{
-    return f_x->sign();
-}
-
-Expression::data const* ATanH::sign() const  // sign(atanh(x)) -----> sign(x)  ; iff -1 < x < 1
-{
-    return f_x->guaranteed(Expression::Attribute::OPENUNITRANGE) ? f_x->sign() : Expression::data::sign();
-}
-
-Expression::data const* Erf::sign() const  // sign(erf(x)) ----> sign(x)
-{
-    return f_x->sign();
-}
-
-Expression::data const* Invert::sign() const  // sign(1/x) ----> 1/sign(x)
-{
-    auto step0 = f_x->sign();
-    auto step1 = step0->invert();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Negate::sign() const  // sign(-x) ----> -sign(x)
-{
-    auto step0 = f_x->sign();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
+    return f_x->guaranteed(Attr::OPENUNITRANGE) ? f_x->sign() : Expr::sign();
 }
 
 /***********************************************************************************************************************
 *** sqrt()
 ***********************************************************************************************************************/
 
-Expression::data const* Expression::data::sqrt() const
+Expr const* Sign::sqrt() const  // sqrt(sign(x)) ----> sign(x)  ; iff x >= 0
 {
-    return function(NodeType::SQRT);
-}
-
-Expression::data const* ConstantNode::sqrt() const
-{
-    return constant(std::sqrt(n));
-}
-
-Expression::data const* Sign::sqrt() const  // sqrt(sign(x)) ----> sign(x)  ; iff x >= 0
-{
-    return f_x->guaranteed(Expression::Attribute::NONNEGATIVE) ? Clone(this) : Expression::data::sqrt();
-}
-
-Expression::data const* Invert::sqrt() const  // sqrt(1/x) ----> 1/sqrt(x)
-{
-    auto step0 = f_x->sqrt();
-    auto step1 = step0->invert();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Square::sqrt() const  // sqrt(x^2) ----> abs(x)
-{
-    return f_x->abs();
-}
-
-Expression::data const* Pow::sqrt() const  // sqrt(x^y) ----> x^(y/2)
-{
-    auto step0 = g_x->mul(literal2Inv);
-    auto step1 = f_x->pow(step0);
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** cbrt()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::cbrt() const
-{
-    return function(NodeType::CBRT);
-}
-
-Expression::data const* ConstantNode::cbrt() const
-{
-    return constant(std::cbrt(n));
-}
-
-Expression::data const* Sign::cbrt() const  // cbrt(sign(x)) ----> sign(x)
-{
-    return Clone(this);
-}
-
-Expression::data const* Invert::cbrt() const  // cbrt(1/x) ----> 1/cbrt(x)
-{
-    auto step0 = f_x->cbrt();
-    auto step1 = step0->invert();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Negate::cbrt() const  // cbrt(-x) ----> -cbrt(x)
-{
-    auto step0 = f_x->cbrt();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Pow::cbrt() const  // sqrt(x^y) ----> x^(y/3)
-{
-    auto step0 = g_x->mul(literal3Inv);
-    auto step1 = f_x->pow(step0);
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** exp()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::exp() const
-{
-    return function(NodeType::EXP);
-}
-
-Expression::data const* ConstantNode::exp() const
-{
-    return constant(std::exp(n));
-}
-
-Expression::data const* Log::exp() const  // exp(log(x)) ----> x  ; iff x > 0
-{
-    return f_x->guaranteed(Expression::Attribute::POSITIVE) ? Clone(f_x) : Expression::data::exp();
-}
-
-Expression::data const* ASinH::exp() const  // exp(asinh(f_x)) ----> sqrt(1+x*x) + x
-{
-    auto step0 = f_x->yconic();
-    auto step1 = f_x->add(step0);
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Negate::exp() const  // exp(-x) ----> 1/exp(x)
-{
-    auto step0 = f_x->exp();
-    auto step1 = step0->invert();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** log()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::log() const
-{
-    return function(NodeType::LOG);
-}
-
-Expression::data const* ConstantNode::log() const
-{
-    return constant(std::log(n));
-}
-
-Expression::data const* Exp::log() const  // log(exp(x)) ----> x
-{
-    return Clone(f_x);
-}
-
-Expression::data const* Invert::log() const  // log(1/x) ----> -log(x)
-{
-    auto step0 = f_x->log();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** sin()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::sin() const
-{
-    return function(NodeType::SIN);
-}
-
-Expression::data const* ConstantNode::sin() const
-{
-    return constant(std::sin(n));
-}
-
-Expression::data const* ASin::sin() const  // sin(asin(x)) = x  ; iff -1 <= x <= 1
-{
-    return f_x->guaranteed(Expression::Attribute::UNITRANGE) ? Clone(f_x) : Expression::data::sin();
-}
-
-Expression::data const* ACos::sin() const
-{
-    return f_x->zconic();
-}
-
-Expression::data const* Negate::sin() const  // sin(-x) ----> -sin(x)
-{
-    auto step0 = f_x->sin();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** cos()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::cos() const
-{
-    return function(NodeType::COS);
-}
-
-Expression::data const* ConstantNode::cos() const
-{
-    return constant(std::cos(n));
-}
-
-Expression::data const* Abs::cos() const  // cos(abs(x)) ----> cos(x)
-{
-    return f_x->cos();
-}
-
-Expression::data const* ASin::cos() const  // cos(asin(x)) ----> sqrt(1-x^2)
-{
-    return f_x->zconic();
-}
-
-Expression::data const* ACos::cos() const  // cos(acos(x)) ----> x  ; iff -1 <= x <= 1
-{
-    return f_x->guaranteed(Expression::Attribute::UNITRANGE) ? Clone(f_x) : Expression::data::cos();
-}
-
-Expression::data const* ATan::cos() const  // cos(atan(x)) ----> 1 / sqrt(1+x*x)
-{
-    auto step0 = f_x->yconic();
-    auto step1 = step0->invert();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Negate::cos() const  // cos(-x) ----> cos(x)
-{
-    return f_x->cos();
-}
-
-/***********************************************************************************************************************
-*** tan()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::tan() const
-{
-    return function(NodeType::TAN);
-}
-
-Expression::data const* ConstantNode::tan() const
-{
-    return constant(std::tan(n));
-}
-
-Expression::data const* ATan::tan() const  // tan(atan(x)) ----> x
-{
-    return Clone(f_x);
-}
-
-Expression::data const* Negate::tan() const  // tan(-x) ----> -tan(x)
-{
-    auto step0 = f_x->tan();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** asin()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::asin() const
-{
-    return function(NodeType::ASIN);
-}
-
-Expression::data const* ConstantNode::asin() const
-{
-    return constant(std::asin(n));
-}
-
-Expression::data const* Negate::asin() const  // asin(-x) ----> -asin(x)
-{
-    auto step0 = f_x->asin();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* ZConic::asin() const  // asin(sqrt(1-x*x)) ----> acos(abs(x))
-{
-    auto step0 = f_x->abs();
-    auto step1 = step0->acos();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** acos()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::acos() const
-{
-    return function(NodeType::ACOS);
-}
-
-Expression::data const* ConstantNode::acos() const
-{
-    return constant(std::acos(n));
-}
-
-Expression::data const* ZConic::acos() const  // acos(sqrt(1-x*x)) ----> abs(asin(x))
-{
-    auto step0 = f_x->asin();
-    auto step1 = step0->abs();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** atan()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::atan() const
-{
-    return function(NodeType::ATAN);
-}
-
-Expression::data const* ConstantNode::atan() const
-{
-    return constant(std::atan(n));
-}
-
-Expression::data const* Negate::atan() const  // atan(-x) ----> -atan(x)
-{
-    auto step0 = f_x->atan();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** sinh()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::sinh() const
-{
-    return function(NodeType::SINH);
-}
-
-Expression::data const* ConstantNode::sinh() const
-{
-    return constant(std::sinh(n));
-}
-
-Expression::data const* ASinH::sinh() const  // sinh(asinh(x)) ----> x
-{
-    return Clone(f_x);
-}
-
-Expression::data const* ACosH::sinh() const  // sinh(acosh(x)) ----> sqrt(1-x^2)
-{
-    return f_x->zconic();
-}
-
-Expression::data const* Negate::sinh() const  // sinh(-x) ----> -sinh(x)
-{
-    auto step0 = f_x->sinh();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** cosh()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::cosh() const
-{
-    return function(NodeType::COSH);
-}
-
-Expression::data const* ConstantNode::cosh() const
-{
-    return constant(std::cosh(n));
-}
-
-Expression::data const* Abs::cosh() const  // cosh(abs(x)) ----> cosh(x)
-{
-    return f_x->cosh();
-}
-
-Expression::data const* ASinH::cosh() const  // cosh(asinh(x)) ----> sqrt(1+x^2)
-{
-    return f_x->yconic();
-}
-
-Expression::data const* ACosH::cosh() const  // cosh(acosh(x)) ----> x  ; iff x >= 1
-{
-    return f_x->guaranteed(Expression::Attribute::POSITIVE) && f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE) ? Clone(f_x) : Expression::data::cosh();
-}
-
-Expression::data const* ATanH::cosh() const  // cosh(atanh(x)) ----> 1/sqrt(1-x*x)
-{
-    auto step0 = f_x->zconic();
-    auto step1 = step0->invert();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Negate::cosh() const  // cosh(-x) ----> cosh(x)
-{
-    return f_x->cosh();
-}
-
-/***********************************************************************************************************************
-*** tanh()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::tanh() const
-{
-    return function(NodeType::TANH);
-}
-
-Expression::data const* ConstantNode::tanh() const
-{
-    return constant(std::tanh(n));
-}
-
-Expression::data const* ATanH::tanh() const  // tanh(atanh(x)) ----> x  ; iff -1 < x < 1
-{
-    return f_x->guaranteed(Expression::Attribute::OPENUNITRANGE) ? Clone(f_x) : Expression::data::tanh();
-}
-
-Expression::data const* Negate::tanh() const  // tanh(-x) ----> -tanh(x)
-{
-    auto step0 = f_x->tanh();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** asinh()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::asinh() const
-{
-    return function(NodeType::ASINH);
-}
-
-Expression::data const* ConstantNode::asinh() const
-{
-    return constant(std::asinh(n));
-}
-
-Expression::data const* SinH::asinh() const  // asinh(sinh(x)) ----> x
-{
-    return Clone(f_x);
-}
-
-Expression::data const* Negate::asinh() const  // asinh(-x) ----> -asinh(x)
-{
-    auto step0 = f_x->asinh();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* XConic::asinh() const  // asinh(sqrt(x^2-1)) ----> acosh(abs(x))
-{
-    auto step0 = f_x->abs();
-    auto step1 = step0->acosh();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** acosh()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::acosh() const
-{
-    return function(NodeType::ACOSH);
-}
-
-Expression::data const* ConstantNode::acosh() const
-{
-    return constant(std::acosh(n));
-}
-
-Expression::data const* CosH::acosh() const  // acosh(cosh(x)) ----> abs(x)
-{
-    return f_x->abs();
-}
-
-Expression::data const* YConic::acosh() const  // acosh(sqrt(1+x^2)) ----> abs(asinh(x))
-{
-    auto step0 = f_x->asinh();
-    auto step1 = step0->abs();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** atanh()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::atanh() const
-{
-    return function(NodeType::ATANH);
-}
-
-Expression::data const* ConstantNode::atanh() const
-{
-    return constant(std::atanh(n));
-}
-
-Expression::data const* TanH::atanh() const  // atanh(tanh(x)) ----> x
-{
-    return Clone(f_x);
-}
-
-Expression::data const* Negate::atanh() const  // atanh(-x) ----> -atanh(x)
-{
-    auto step0 = f_x->atanh();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** erf()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::erf() const
-{
-    return function(NodeType::ERF);
-}
-
-Expression::data const* ConstantNode::erf() const
-{
-    return constant(std::erf(n));
-}
-
-Expression::data const* Negate::erf() const  // erf(-x) ----> -erf(x)
-{
-    auto step0 = f_x->erf();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** invert()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::invert() const
-{
-    return function(NodeType::INVERT);
-}
-
-Expression::data const* ConstantNode::invert() const
-{
-    return constant(1 / n);
-}
-
-Expression::data const* Cos::invert() const  // 1/cos(x) ----> secant(x)
-{
-    return f_x->secant();
-}
-
-Expression::data const* Invert::invert() const  // 1/(1/x) ----> x  ; iff x != 0
-{
-    return f_x->guaranteed(Expression::Attribute::NONZERO) ? Clone(f_x) : Expression::data::invert();
-}
-
-Expression::data const* Negate::invert() const  // 1/(-x) ----> -(1/x)
-{
-    auto step0 = f_x->invert();
-    auto step1 = step0->negate();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Secant::invert() const  // 1/secant(x) ----> cos(x)
-{
-    return f_x->cos();
-}
-
-Expression::data const* Pow::invert() const  // 1/(x^y) ---> x ^ -y
-{
-    auto step0 = g_x->negate();
-    auto step1 = f_x->pow(step0);
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** negate()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::negate() const
-{
-    return function(NodeType::NEGATE);
-}
-
-Expression::data const* ConstantNode::negate() const
-{
-    return constant(-n);
-}
-
-Expression::data const* Negate::negate() const  // -(-x) ----> x
-{
-    return Clone(f_x);
-}
-
-/***********************************************************************************************************************
-*** secant()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::secant() const
-{
-    return function(NodeType::SECANT);
-}
-
-Expression::data const* ConstantNode::secant() const
-{
-    return constant(1 / std::cos(n));
-}
-
-Expression::data const* Negate::secant() const  // secant(-x) ----> secant(x)
-{
-    return f_x->secant();
-}
-
-/***********************************************************************************************************************
-*** softpp()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::softpp() const
-{
-    return function(NodeType::SOFTPP);
-}
-
-Expression::data const* ConstantNode::softpp() const
-{
-    return constant(ISp(n));
-}
-
-/***********************************************************************************************************************
-*** spence()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::spence() const
-{
-    return function(NodeType::SPENCE);
-}
-
-Expression::data const* ConstantNode::spence() const
-{
-    return constant(Li2(n));
-}
-
-/***********************************************************************************************************************
-*** square()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::square() const
-{
-    return function(NodeType::SQUARE);
-}
-
-Expression::data const* ConstantNode::square() const
-{
-    return constant(n * n);
-}
-
-Expression::data const* Abs::square() const  // abs(x)^2 ----> x^2
-{
-    return f_x->square();
-}
-
-Expression::data const* Sqrt::square() const  // sqrt(x)^2 ----> x  ; iff x >= 0
-{
-    return f_x->guaranteed(Expression::Attribute::NONNEGATIVE) ? Clone(f_x) : Expression::data::square();
-}
-
-Expression::data const* Invert::square() const  // (1/x)^2 ----> 1/(x^2)
-{
-    auto step0 = f_x->square();
-    auto step1 = step0->invert();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Negate::square() const  // (-x)^2 ----> x^2
-{
-    return f_x->square();
-}
-
-Expression::data const* Pow::square() const  // (x^y)^2 ---> x ^ (2*y)
-{
-    auto step0 = g_x->add(g_x);
-    auto step1 = f_x->pow(step0);
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** xconic()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::xconic() const
-{
-    return function(NodeType::XCONIC);
-}
-
-Expression::data const* ConstantNode::xconic() const
-{
-    return constant(std::sqrt(n > 0 ? n * n - 1 : -1));
-}
-
-Expression::data const* YConic::xconic() const  // sqrt(sqrt(1+x^2)^2-1) ----> abs(x)
-{
-    return f_x->abs();
-}
-
-Expression::data const* CosH::xconic() const  // sqrt((cosh(x)^2-1) ----> abs(sinh(x))
-{
-    auto step0 = f_x->sinh();
-    auto step1 = step0->abs();
-
-    Erase(step0);
-
-    return step1;
-}
-
-/***********************************************************************************************************************
-*** yconic()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::yconic() const
-{
-    return function(NodeType::YCONIC);
-}
-
-Expression::data const* ConstantNode::yconic() const
-{
-    return constant(std::sqrt(1 + n * n));
-}
-
-Expression::data const* Abs::yconic() const  // abs(sqrt(x*x+1)) ----> sqrt(x*x+1)
-{
-    return f_x->yconic();
-}
-
-Expression::data const* Negate::yconic() const  // sqrt(1+(-x)^2) ----> sqrt(1+x^2)
-{
-    return f_x->yconic();
-}
-
-Expression::data const* SinH::yconic() const  // sqrt(1+sinh(x)^2) ----> cosh(x)
-{
-    return f_x->cosh();
-}
-
-Expression::data const* XConic::yconic() const  // sqrt(1+sqrt(x^2-1)^2) ----> abs(x)  ; iff x >= 1 || x <= -1
-{
-    return f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE) ? f_x->abs() : Expression::data::yconic();
-}
-
-/***********************************************************************************************************************
-*** zconic()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::zconic() const
-{
-    return function(NodeType::ZCONIC);
-}
-
-Expression::data const* ConstantNode::zconic() const
-{
-    return constant(std::sqrt(1 - n * n));
-}
-
-Expression::data const* Abs::zconic() const  // abs(sqrt(1-x*x)) ----> sqrt(1-x*x)
-{
-    return f_x->zconic();
-}
-
-Expression::data const* Sin::zconic() const  // sqrt(1-sin(x)^2) ----> abs(cos(x))
-{
-    auto step0 = f_x->cos();
-    auto step1 = step0->abs();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Cos::zconic() const  // sqrt(1-cos(x)^2) ----> abs(sin(x))
-{
-    auto step0 = f_x->sin();
-    auto step1 = step0->abs();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Negate::zconic() const  // sqrt(1-(-x)^2) ----> sqrt(1-x^2)
-{
-    return f_x->zconic();
-}
-
-Expression::data const* ZConic::zconic() const  // sqrt(1-sqrt(1-x^2)^2) ----> abs(x)  ; iff -1 <= x <= 1
-{
-    return f_x->guaranteed(Expression::Attribute::UNITRANGE) ? f_x->abs() : Expression::data::zconic();
+    return f_x->guaranteed(Attr::NONNEGATIVE) ? Clone(this) : Expr::sqrt();
 }
 
 /***********************************************************************************************************************
 *** add()
 ***********************************************************************************************************************/
 
-Expression::data const* Expression::data::add(Expression::data const* p) const
+Expr const* Expression::data::add(Expr const* p) const
 {
     return p->commutative_add(this);
 }
 
-Expression::data const* Expression::data::commutative_add(Expression::data const* p) const
+Expr const* Expression::data::commutative_add(Expr const* p) const
 {
     if (addNode.find(p) != addNode.end()) return Clone(addNode[p]);
     return new Add(Clone(p), Clone(this));
 }
 
-Expression::data const* ConstantNode::add(Expression::data const* p) const
+Expr const* ConstantNode::add(Expr const* p) const
 {
     if (p->is(NodeType::CONSTANT)) return constant(n + p->evaluate());
     if (p->is(NodeType::NEGATE, this)) return Clone(literal0);
     if (n == 0) return Clone(p);
-    return Expression::data::add(p);
+    return Expr::add(p);
 }
 
-Expression::data const* ConstantNode::commutative_add(Expression::data const* p) const
+Expr const* ConstantNode::commutative_add(Expr const* p) const
 {
     if (p->is(NodeType::CONSTANT)) return constant(n + p->evaluate());
     if (p->is(NodeType::NEGATE, this)) return Clone(literal0);
     if (n == 0) return Clone(p);
-    return Expression::data::commutative_add(p);
+    return Expr::commutative_add(p);
 }
 
-Expression::data const* Negate::add(Expression::data const* p) const
+Expr const* Negate::add(Expr const* p) const
 {
-    return Expression::data::add(p);
+    return Expr::add(p);
 }
 
-Expression::data const* Add::add(Expression::data const* p) const
+Expr const* Add::add(Expr const* p) const
 {
     if (depth > STACK_LIMIT)
     {
@@ -2340,10 +1367,10 @@ Expression::data const* Add::add(Expression::data const* p) const
         }
     }
 
-    return Expression::data::add(p);
+    return Expr::add(p);
 }
 
-Expression::data const* Add::commutative_add(Expression::data const* p) const
+Expr const* Add::commutative_add(Expr const* p) const
 {
     if (depth > STACK_LIMIT)
     {
@@ -2364,44 +1391,44 @@ Expression::data const* Add::commutative_add(Expression::data const* p) const
         }
     }
 
-    return Expression::data::commutative_add(p);
+    return Expr::commutative_add(p);
 }
 
 /***********************************************************************************************************************
 *** mul()
 ***********************************************************************************************************************/
 
-Expression::data const* Expression::data::mul(Expression::data const* p) const
+Expr const* Expression::data::mul(Expr const* p) const
 {
     if (p == this) return square();
     return p->commutative_mul(this);
 }
 
-Expression::data const* Expression::data::commutative_mul(Expression::data const* p) const
+Expr const* Expression::data::commutative_mul(Expr const* p) const
 {
     if (mulNode.find(p) != mulNode.end()) return Clone(mulNode[p]);
     return new Mul(Clone(p), Clone(this));
 }
 
-Expression::data const* ConstantNode::mul(Expression::data const* p) const
+Expr const* ConstantNode::mul(Expr const* p) const
 {
     if (p->is(NodeType::CONSTANT)) return constant(n * p->evaluate());
     if (n == 0) return Clone(this);
     if (n == 1) return Clone(p);
     if (n == -1) return p->negate();
-    return Expression::data::mul(p);
+    return Expr::mul(p);
 }
 
-Expression::data const* ConstantNode::commutative_mul(Expression::data const* p) const
+Expr const* ConstantNode::commutative_mul(Expr const* p) const
 {
     if (p->is(NodeType::CONSTANT)) return constant(n * p->evaluate());
     if (n == 0) return Clone(this);
     if (n == 1) return Clone(p);
     if (n == -1) return p->negate();
-    return Expression::data::commutative_mul(p);
+    return Expr::commutative_mul(p);
 }
 
-Expression::data const* Invert::mul(Expression::data const* p) const
+Expr const* Invert::mul(Expr const* p) const
 {
     if (p->easyInvert())  // 1/x * 1/p  ---->  1/(x * p)
     {
@@ -2413,10 +1440,10 @@ Expression::data const* Invert::mul(Expression::data const* p) const
         return step2;
     }
 
-    return Expression::data::add(p);
+    return Expr::add(p);
 }
 
-Expression::data const* Negate::mul(Expression::data const* p) const
+Expr const* Negate::mul(Expr const* p) const
 {
     if (p->easyNegate())  // -x * -p  ---->  x * p
     {
@@ -2434,19 +1461,19 @@ Expression::data const* Negate::mul(Expression::data const* p) const
     }
 }
 
-Expression::data const* Square::mul(Expression::data const* p) const
+Expr const* Square::mul(Expr const* p) const
 {
     if (f_x == p) return f_x->pow(literal3);
-    return Expression::data::mul(p);
+    return Expr::mul(p);
 }
 
-Expression::data const* Square::commutative_mul(Expression::data const* p) const
+Expr const* Square::commutative_mul(Expr const* p) const
 {
     if(f_x == p) return f_x->pow(literal3);
-    return Expression::data::commutative_mul(p);
+    return Expr::commutative_mul(p);
 }
 
-Expression::data const* Add::mul(Expression::data const* p) const
+Expr const* Add::mul(Expr const* p) const
 {
     if (depth > STACK_LIMIT)
     {
@@ -2458,10 +1485,10 @@ Expression::data const* Add::mul(Expression::data const* p) const
         return step2;
     }
 
-    return Expression::data::mul(p);
+    return Expr::mul(p);
 }
 
-Expression::data const* Add::commutative_mul(Expression::data const* p) const
+Expr const* Add::commutative_mul(Expr const* p) const
 {
     if (depth > STACK_LIMIT)
     {
@@ -2473,10 +1500,10 @@ Expression::data const* Add::commutative_mul(Expression::data const* p) const
         return step2;
     }
 
-    return Expression::data::commutative_mul(p);
+    return Expr::commutative_mul(p);
 }
 
-Expression::data const* Mul::mul(Expression::data const* p) const
+Expr const* Mul::mul(Expr const* p) const
 {
     if (depth > STACK_LIMIT)
     {
@@ -2497,10 +1524,10 @@ Expression::data const* Mul::mul(Expression::data const* p) const
         }
     }
 
-    return Expression::data::mul(p);
+    return Expr::mul(p);
 }
 
-Expression::data const* Mul::commutative_mul(Expression::data const* p) const
+Expr const* Mul::commutative_mul(Expr const* p) const
 {
     if (depth > STACK_LIMIT)
     {
@@ -2521,10 +1548,10 @@ Expression::data const* Mul::commutative_mul(Expression::data const* p) const
         }
     }
 
-    return Expression::data::commutative_mul(p);
+    return Expr::commutative_mul(p);
 }
 
-Expression::data const* Pow::mul(Expression::data const* p) const
+Expr const* Pow::mul(Expr const* p) const
 {
     if (f_x == p)
     {
@@ -2536,10 +1563,10 @@ Expression::data const* Pow::mul(Expression::data const* p) const
         return step1;
     }
 
-    return Expression::data::mul(p);
+    return Expr::mul(p);
 }
 
-Expression::data const* Pow::commutative_mul(Expression::data const* p) const
+Expr const* Pow::commutative_mul(Expr const* p) const
 {
     if (f_x == p)
     {
@@ -2551,14 +1578,14 @@ Expression::data const* Pow::commutative_mul(Expression::data const* p) const
         return step1;
     }
 
-    return Expression::data::commutative_mul(p);
+    return Expr::commutative_mul(p);
 }
 
 /***********************************************************************************************************************
 *** pow()
 ***********************************************************************************************************************/
 
-Expression::data const* Expression::data::pow(Expression::data const* p) const
+Expr const* Expression::data::pow(Expr const* p) const
 {
     if (p->is(NodeType::CONSTANT))
     {
@@ -2576,94 +1603,34 @@ Expression::data const* Expression::data::pow(Expression::data const* p) const
     return new Pow(Clone(this), Clone(p));
 }
 
-Expression::data const* ConstantNode::pow(Expression::data const* p) const
+Expr const* ConstantNode::pow(Expr const* p) const
 {
     if (p->is(NodeType::CONSTANT)) return constant(std::pow(n, p->evaluate()));
-    if (n == 0 && p->guaranteed(Expression::Attribute::NONZERO)) return Clone(this);
+    if (n == 0 && p->guaranteed(Attr::NONZERO)) return Clone(this);
     if (n == 1) return Clone(this);
     if (n == std::exp(1)) return p->exp();
-    return Expression::data::pow(p);
-}
-
-Expression::data const* Sqrt::pow(Expression::data const* p) const  // sqrt(f_x) ^ p  ---->  f_x ^ (p/2)
-{
-    auto step0 = p->mul(literal2Inv);
-    auto step1 = f_x->pow(step0);
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Cbrt::pow(Expression::data const* p) const  // cbrt(f_x) ^ p  ---->  f_x ^ (p/3)
-{
-    auto step0 = p->mul(literal3Inv);
-    auto step1 = f_x->pow(step0);
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Exp::pow(Expression::data const* p) const  // exp(f_x) ^ p  ---->  exp(f_x*p)
-{
-    auto step0 = f_x->mul(p);
-    auto step1 = step0->exp();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Invert::pow(Expression::data const* p) const  // (1/f_x) ^ p  ---->  1/(f_x^p)
-{
-    auto step0 = f_x->pow(p);
-    auto step1 = step0->invert();
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Square::pow(Expression::data const* p) const  // (f_x^2) ^ p  ---->  f_x ^ (2*p)
-{
-    auto step0 = p->add(p);
-    auto step1 = f_x->pow(step0);
-
-    Erase(step0);
-
-    return step1;
-}
-
-Expression::data const* Pow::pow(Expression::data const* p) const  // (f_x^g_x) ^ p  ---->  f_x ^ (g_x*p)
-{
-    auto step0 = g_x->mul(p);
-    auto step1 = f_x->pow(step0);
-
-    Erase(step0);
-
-    return step1;
+    return Expr::pow(p);
 }
 
 /***********************************************************************************************************************
 *** derivative()
 ***********************************************************************************************************************/
 
-Expression::data const* ConstantNode::derivative(Variable const&) const
+Expr const* ConstantNode::derivative(Variable const&) const
 {
     // D(C) = 0
 
     return Clone(literal0);
 }
 
-Expression::data const* VariableNode::derivative(Variable const& r) const
+Expr const* VariableNode::derivative(Variable const& r) const
 {
     // D(x) = 1 , D(?) = 0
 
     return constant(r.id() == x.id());
 }
 
-Expression::data const* Abs::derivative(Variable const& r) const
+Expr const* Abs::derivative(Variable const& r) const
 {
     // D(abs(f_x)) = D(f_x) * sign(f_x)
 
@@ -2677,14 +1644,14 @@ Expression::data const* Abs::derivative(Variable const& r) const
     return step2;
 }
 
-Expression::data const* Sign::derivative(Variable const& r) const
+Expr const* Sign::derivative(Variable const& r) const
 {
     // D(sign(f_x)) = D(f_x) * 0 = 0
 
     return Clone(literal0);
 }
 
-Expression::data const* Sqrt::derivative(Variable const& r) const
+Expr const* Sqrt::derivative(Variable const& r) const
 {
     // D(sqrt(f_x)) = D(f_x) * 1/(2*sqrt(f_x))
 
@@ -2700,7 +1667,7 @@ Expression::data const* Sqrt::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* Cbrt::derivative(Variable const& r) const
+Expr const* Cbrt::derivative(Variable const& r) const
 {
     // D(cbrt(f_x)) = D(f_x) * 1/(3*cbrt(f_x)^2)
 
@@ -2718,7 +1685,7 @@ Expression::data const* Cbrt::derivative(Variable const& r) const
     return step4;
 }
 
-Expression::data const* Exp::derivative(Variable const& r) const
+Expr const* Exp::derivative(Variable const& r) const
 {
     // D(exp(f_x)) = D(f_x) * exp(f_x)
 
@@ -2730,7 +1697,7 @@ Expression::data const* Exp::derivative(Variable const& r) const
     return step1;
 }
 
-Expression::data const* Log::derivative(Variable const& r) const
+Expr const* Log::derivative(Variable const& r) const
 {
     // D(log(f_x)) = D(f_x) * 1/f_x
 
@@ -2744,7 +1711,7 @@ Expression::data const* Log::derivative(Variable const& r) const
     return step2;
 }
 
-Expression::data const* Sin::derivative(Variable const& r) const
+Expr const* Sin::derivative(Variable const& r) const
 {
     // D(sin(f_x)) = D(f_x) * cos(f_x)
 
@@ -2758,7 +1725,7 @@ Expression::data const* Sin::derivative(Variable const& r) const
     return step2;
 }
 
-Expression::data const* Cos::derivative(Variable const& r) const
+Expr const* Cos::derivative(Variable const& r) const
 {
     // D(cos(f_x)) = D(f_x) * -sin(f_x)
 
@@ -2774,7 +1741,7 @@ Expression::data const* Cos::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* Tan::derivative(Variable const& r) const
+Expr const* Tan::derivative(Variable const& r) const
 {
     // D(tan(f_x)) = D(f_x) * 1/cos(f_x)^2
 
@@ -2790,7 +1757,7 @@ Expression::data const* Tan::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* ASin::derivative(Variable const& r) const
+Expr const* ASin::derivative(Variable const& r) const
 {
     // D(asin(f_x)) = D(f_x) * 1/sqrt(1-f_x^2)
 
@@ -2806,7 +1773,7 @@ Expression::data const* ASin::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* ACos::derivative(Variable const& r) const
+Expr const* ACos::derivative(Variable const& r) const
 {
     // D(acos(f_x)) = D(f_x) * -1/sqrt(1-f_x^2)
 
@@ -2824,7 +1791,7 @@ Expression::data const* ACos::derivative(Variable const& r) const
     return step4;
 }
 
-Expression::data const* ATan::derivative(Variable const& r) const
+Expr const* ATan::derivative(Variable const& r) const
 {
     // D(atan(f_x)) = D(f_x) * 1/(f_x^2+1)
 
@@ -2842,7 +1809,7 @@ Expression::data const* ATan::derivative(Variable const& r) const
     return step4;
 }
 
-Expression::data const* SinH::derivative(Variable const& r) const
+Expr const* SinH::derivative(Variable const& r) const
 {
     // D(sinh(f_x)) = D(f_x) * cosh(f_x)
 
@@ -2856,7 +1823,7 @@ Expression::data const* SinH::derivative(Variable const& r) const
     return step2;
 }
 
-Expression::data const* CosH::derivative(Variable const& r) const
+Expr const* CosH::derivative(Variable const& r) const
 {
     // D(cosh(f_x)) = D(f_x) * sinh(f_x)
 
@@ -2870,7 +1837,7 @@ Expression::data const* CosH::derivative(Variable const& r) const
     return step2;
 }
 
-Expression::data const* TanH::derivative(Variable const& r) const
+Expr const* TanH::derivative(Variable const& r) const
 {
     // D(tanh(f_x)) = D(f_x) * 1/cosh(f_x)^2
 
@@ -2888,7 +1855,7 @@ Expression::data const* TanH::derivative(Variable const& r) const
     return step4;
 }
 
-Expression::data const* ASinH::derivative(Variable const& r) const
+Expr const* ASinH::derivative(Variable const& r) const
 {
     // D(asinh(f_x)) = D(f_x) * 1/sqrt(f_x^2+1)
 
@@ -2904,7 +1871,7 @@ Expression::data const* ASinH::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* ACosH::derivative(Variable const& r) const
+Expr const* ACosH::derivative(Variable const& r) const
 {
     // D(acosh(f_x)) = D(f_x) * 1/sqrt(f_x^2-1)
 
@@ -2920,7 +1887,7 @@ Expression::data const* ACosH::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* ATanH::derivative(Variable const& r) const
+Expr const* ATanH::derivative(Variable const& r) const
 {
     // D(atanh(f_x)) = D(f_x) * 1/(1-f_x^2)
 
@@ -2938,7 +1905,7 @@ Expression::data const* ATanH::derivative(Variable const& r) const
     return step4;
 }
 
-Expression::data const* Erf::derivative(Variable const& r) const
+Expr const* Erf::derivative(Variable const& r) const
 {
     // D(erf(f_x)) = D(f_x) * 1/exp(f_x^2) * 1/sqrt(atan(1))
 
@@ -2958,7 +1925,7 @@ Expression::data const* Erf::derivative(Variable const& r) const
     return step5;
 }
 
-Expression::data const* Invert::derivative(Variable const& r) const
+Expr const* Invert::derivative(Variable const& r) const
 {
     // D(1/f_x) = D(f_x) * -(1/f_x)^2
 
@@ -2974,7 +1941,7 @@ Expression::data const* Invert::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* Negate::derivative(Variable const& r) const
+Expr const* Negate::derivative(Variable const& r) const
 {
     // D(-f_x) = D(f_x) * -1
 
@@ -2986,7 +1953,7 @@ Expression::data const* Negate::derivative(Variable const& r) const
     return step1;
 }
 
-Expression::data const* Secant::derivative(Variable const& r) const
+Expr const* Secant::derivative(Variable const& r) const
 {
     // D(secant(f_x)) = D(f_x) * tan(f_x)*secant(f_x)
 
@@ -3002,7 +1969,7 @@ Expression::data const* Secant::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* SoftPP::derivative(Variable const& r) const
+Expr const* SoftPP::derivative(Variable const& r) const
 {
     // D(-Li2(-exp(f_x))) = D(f_x) * log(1+exp(f_x))
 
@@ -3020,7 +1987,7 @@ Expression::data const* SoftPP::derivative(Variable const& r) const
     return step4;
 }
 
-Expression::data const* Spence::derivative(Variable const& r) const
+Expr const* Spence::derivative(Variable const& r) const
 {
     // D(Li2(f_x)) = D(f_x) * log(1-f_x)/f_x
 
@@ -3042,7 +2009,7 @@ Expression::data const* Spence::derivative(Variable const& r) const
     return step6;
 }
 
-Expression::data const* Square::derivative(Variable const& r) const
+Expr const* Square::derivative(Variable const& r) const
 {
     // D(f_x^2) = D(f_x) * 2*f_x
 
@@ -3056,7 +2023,7 @@ Expression::data const* Square::derivative(Variable const& r) const
     return step2;
 }
 
-Expression::data const* XConic::derivative(Variable const& r) const
+Expr const* XConic::derivative(Variable const& r) const
 {
     // D(sqrt(f_x^2-1)) = D(f_x) * f_x/sqrt(f_x^2-1)
 
@@ -3072,7 +2039,7 @@ Expression::data const* XConic::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* YConic::derivative(Variable const& r) const
+Expr const* YConic::derivative(Variable const& r) const
 {
     // D(sqrt(1+f_x^2)) = D(f_x) * f_x / sqrt(1+f_x^2)
 
@@ -3088,7 +2055,7 @@ Expression::data const* YConic::derivative(Variable const& r) const
     return step3;
 }
 
-Expression::data const* ZConic::derivative(Variable const& r) const
+Expr const* ZConic::derivative(Variable const& r) const
 {
     // D(sqrt(1-f_x^2)) = D(f_x) * -f_x / sqrt(1-f_x^2)
 
@@ -3106,7 +2073,7 @@ Expression::data const* ZConic::derivative(Variable const& r) const
     return step4;
 }
 
-Expression::data const* Add::derivative(Variable const& r) const
+Expr const* Add::derivative(Variable const& r) const
 {
     // D(f_x+g_x) = D(f_x) + D(g_x)
 
@@ -3120,7 +2087,7 @@ Expression::data const* Add::derivative(Variable const& r) const
     return step2;
 }
 
-Expression::data const* Mul::derivative(Variable const& r) const
+Expr const* Mul::derivative(Variable const& r) const
 {
     // D(f_x*g_x) = D(f_x) * g_x + D(g_x) * f_x
 
@@ -3138,7 +2105,7 @@ Expression::data const* Mul::derivative(Variable const& r) const
     return step4;
 }
 
-Expression::data const* Pow::derivative(Variable const& r) const
+Expr const* Pow::derivative(Variable const& r) const
 {
     // D(f_x^g_x) = D(f_x) * g_x*f_x^(g_x-1) + D(g_x) * f_x^g_x*log(f_x)
 
@@ -3169,136 +2136,6 @@ Expression::data const* Pow::derivative(Variable const& r) const
 /***********************************************************************************************************************
 *** value()
 ***********************************************************************************************************************/
-
-double ConstantNode::value() const
-{
-    return n;
-}
-
-double VariableNode::value() const
-{
-    return double(x);
-}
-
-double Abs::value() const
-{
-    return std::abs(f_x->evaluate());
-}
-
-double Sign::value() const
-{
-    return ::sign(f_x->evaluate());
-}
-
-double Sqrt::value() const
-{
-    return std::sqrt(f_x->evaluate());
-}
-
-double Cbrt::value() const
-{
-    return std::cbrt(f_x->evaluate());
-}
-
-double Exp::value() const
-{
-    return std::exp(f_x->evaluate());
-}
-
-double Log::value() const
-{
-    return std::log(f_x->evaluate());
-}
-
-double Sin::value() const
-{
-    return std::sin(f_x->evaluate());
-}
-
-double Cos::value() const
-{
-    return std::cos(f_x->evaluate());
-}
-
-double Tan::value() const
-{
-    return std::tan(f_x->evaluate());
-}
-
-double ASin::value() const
-{
-    return std::asin(f_x->evaluate());
-}
-
-double ACos::value() const
-{
-    return std::acos(f_x->evaluate());
-}
-
-double ATan::value() const
-{
-    return std::atan(f_x->evaluate());
-}
-
-double SinH::value() const
-{
-    return std::sinh(f_x->evaluate());
-}
-
-double CosH::value() const
-{
-    return std::cosh(f_x->evaluate());
-}
-
-double TanH::value() const
-{
-    return std::tanh(f_x->evaluate());
-}
-
-double ASinH::value() const
-{
-    return std::asinh(f_x->evaluate());
-}
-
-double ACosH::value() const
-{
-    return std::acosh(f_x->evaluate());
-}
-
-double ATanH::value() const
-{
-    return std::atanh(f_x->evaluate());
-}
-
-double Erf::value() const
-{
-    return std::erf(f_x->evaluate());
-}
-
-double Invert::value() const
-{
-    return 1 / f_x->evaluate();
-}
-
-double Negate::value() const
-{
-    return -f_x->evaluate();
-}
-
-double Secant::value() const
-{
-    return 1 / std::cos(f_x->evaluate());
-}
-
-double SoftPP::value() const
-{
-    return ISp(f_x->evaluate());
-}
-
-double Spence::value() const
-{
-    return Li2(f_x->evaluate());
-}
 
 double Square::value() const
 {
@@ -3342,1054 +2179,1049 @@ double Mul::value() const
     return x * y;
 }
 
-double Pow::value() const
-{
-    return std::pow(f_x->evaluate(), g_x->evaluate());
-}
-
 /***********************************************************************************************************************
 *** guaranteed()
 ***********************************************************************************************************************/
 
-bool ConstantNode::guaranteed(Expression::Attribute a) const
+bool ConstantNode::guaranteed(Attr a) const
 {
     if (!isnan(n) && !isinf(n)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::CONTINUOUS:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::NONZERO:
+    case Attr::NONZERO:
         return n != 0;
 
-    case Expression::Attribute::POSITIVE:
+    case Attr::POSITIVE:
         return n > 0;
 
-    case Expression::Attribute::NEGATIVE:
+    case Attr::NEGATIVE:
         return n < 0;
 
-    case Expression::Attribute::NONPOSITIVE:
+    case Attr::NONPOSITIVE:
         return n <= 0;
 
-    case Expression::Attribute::NONNEGATIVE:
+    case Attr::NONNEGATIVE:
         return n >= 0;
 
-    case Expression::Attribute::UNITRANGE:
+    case Attr::UNITRANGE:
         return n >= -1 && n <= 1;
 
-    case Expression::Attribute::ANTIUNITRANGE:
+    case Attr::ANTIUNITRANGE:
         return n < -1 || n > 1;
 
-    case Expression::Attribute::OPENUNITRANGE:
+    case Attr::OPENUNITRANGE:
         return n > -1 && n < 1;
 
-    case Expression::Attribute::ANTIOPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
         return n <= -1 || n >= 1;
     }
 
     return false;
 }
 
-bool VariableNode::guaranteed(Expression::Attribute a) const
+bool VariableNode::guaranteed(Attr a) const
 {
     switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::NONDECREASING:
+    case Attr::DEFINED:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::NONDECREASING:
         return true;
     }
 
     return false;
 }
 
-bool Abs::guaranteed(Expression::Attribute a) const
+bool Abs::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::NONNEGATIVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::ANTIUNITRANGE:
-    case Expression::Attribute::OPENUNITRANGE:
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::NONZERO:
+    case Attr::UNITRANGE:
+    case Attr::ANTIUNITRANGE:
+    case Attr::OPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a);
 
-    case Expression::Attribute::POSITIVE:
-        return f_x->guaranteed(Expression::Attribute::NONZERO);
+    case Attr::POSITIVE:
+        return f_x->guaranteed(Attr::NONZERO);
 
-    case Expression::Attribute::INCREASING:
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
+    case Attr::INCREASING:
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
         return false;
 
-    case Expression::Attribute::DECREASING:
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
+    case Attr::DECREASING:
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
         return false;
 
-    case Expression::Attribute::NONINCREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
+    case Attr::NONINCREASING:
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
         return false;
 
-    case Expression::Attribute::NONDECREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
+    case Attr::NONDECREASING:
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
         return false;
 
-    case Expression::Attribute::BOUNDEDABOVE:
-        return f_x->guaranteed(Expression::Attribute::BOUNDEDABOVE) && f_x->guaranteed(Expression::Attribute::BOUNDEDBELOW);
+    case Attr::BOUNDEDABOVE:
+        return f_x->guaranteed(Attr::BOUNDEDABOVE) && f_x->guaranteed(Attr::BOUNDEDBELOW);
     }
 
     return false;
 }
 
-bool Sign::guaranteed(Expression::Attribute a) const
+bool Sign::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::UNITRANGE:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
         return f_x->guaranteed(a);
 
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::NONZERO);
+    case Attr::ANTIOPENUNITRANGE:
+        return f_x->guaranteed(Attr::NONZERO);
 
-    case Expression::Attribute::CONTINUOUS:
-        return f_x->guaranteed(Expression::Attribute::POSITIVE) || f_x->guaranteed(Expression::Attribute::NEGATIVE);
+    case Attr::CONTINUOUS:
+        return f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
 
-    case Expression::Attribute::NONINCREASING:
-        return f_x->guaranteed(Expression::Attribute::NONINCREASING) || f_x->guaranteed(Expression::Attribute::POSITIVE) || f_x->guaranteed(Expression::Attribute::NEGATIVE);
+    case Attr::NONINCREASING:
+        return f_x->guaranteed(Attr::NONINCREASING) || f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
 
-    case Expression::Attribute::NONDECREASING:
-        return f_x->guaranteed(Expression::Attribute::NONDECREASING) || f_x->guaranteed(Expression::Attribute::POSITIVE) || f_x->guaranteed(Expression::Attribute::NEGATIVE);
+    case Attr::NONDECREASING:
+        return f_x->guaranteed(Attr::NONDECREASING) || f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
     }
 
     return false;
 }
 
-bool Sqrt::guaranteed(Expression::Attribute a) const
+bool Sqrt::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) switch (a)
+    if (f_x->guaranteed(Attr::NONNEGATIVE)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::NONNEGATIVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::ANTIUNITRANGE:
-    case Expression::Attribute::OPENUNITRANGE:
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-    case Expression::Attribute::BOUNDEDABOVE:
-        return f_x->guaranteed(a);
-    }
-
-    return false;
-}
-
-bool Cbrt::guaranteed(Expression::Attribute a) const
-{
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
-    {
-    case Expression::Attribute::DEFINED:
-        return true;
-
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::ANTIUNITRANGE:
-    case Expression::Attribute::OPENUNITRANGE:
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::UNITRANGE:
+    case Attr::ANTIUNITRANGE:
+    case Attr::OPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
         return f_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool Exp::guaranteed(Expression::Attribute a) const
+bool Cbrt::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
         return true;
 
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-    case Expression::Attribute::BOUNDEDABOVE:
-        return f_x->guaranteed(a);
-
-    case Expression::Attribute::UNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::NONPOSITIVE);
-
-    case Expression::Attribute::ANTIUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::POSITIVE);
-
-    case Expression::Attribute::OPENUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::NEGATIVE);
-
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::NONNEGATIVE);
-    }
-
-    return false;
-}
-
-bool Log::guaranteed(Expression::Attribute a) const
-{
-    if (f_x->guaranteed(Expression::Attribute::POSITIVE)) switch (a)
-    {
-    case Expression::Attribute::DEFINED:
-        return true;
-
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-    case Expression::Attribute::BOUNDEDABOVE:
-        return f_x->guaranteed(a);
-
-    case Expression::Attribute::NONZERO:
-        return f_x->guaranteed(Expression::Attribute::ANTIUNITRANGE) || f_x->guaranteed(Expression::Attribute::OPENUNITRANGE);
-
-    case Expression::Attribute::POSITIVE:
-        return f_x->guaranteed(Expression::Attribute::ANTIUNITRANGE);
-
-    case Expression::Attribute::NEGATIVE:
-        return f_x->guaranteed(Expression::Attribute::OPENUNITRANGE);
-
-    case Expression::Attribute::NONPOSITIVE:
-        return f_x->guaranteed(Expression::Attribute::UNITRANGE);
-
-    case Expression::Attribute::NONNEGATIVE:
-        return f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE);
-    }
-
-    return false;
-}
-
-bool Sin::guaranteed(Expression::Attribute a) const
-{
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
-    {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
-        return true;
-
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::UNITRANGE:
+    case Attr::ANTIUNITRANGE:
+    case Attr::OPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
         return f_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool Cos::guaranteed(Expression::Attribute a) const
+bool Exp::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+        return f_x->guaranteed(a);
+
+    case Attr::UNITRANGE:
+        return f_x->guaranteed(Attr::NONPOSITIVE);
+
+    case Attr::ANTIUNITRANGE:
+        return f_x->guaranteed(Attr::POSITIVE);
+
+    case Attr::OPENUNITRANGE:
+        return f_x->guaranteed(Attr::NEGATIVE);
+
+    case Attr::ANTIOPENUNITRANGE:
+        return f_x->guaranteed(Attr::NONNEGATIVE);
+    }
+
+    return false;
+}
+
+bool Log::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::POSITIVE)) switch (a)
+    {
+    case Attr::DEFINED:
+        return true;
+
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+        return f_x->guaranteed(a);
+
+    case Attr::NONZERO:
+        return f_x->guaranteed(Attr::ANTIUNITRANGE) || f_x->guaranteed(Attr::OPENUNITRANGE);
+
+    case Attr::POSITIVE:
+        return f_x->guaranteed(Attr::ANTIUNITRANGE);
+
+    case Attr::NEGATIVE:
+        return f_x->guaranteed(Attr::OPENUNITRANGE);
+
+    case Attr::NONPOSITIVE:
+        return f_x->guaranteed(Attr::UNITRANGE);
+
+    case Attr::NONNEGATIVE:
+        return f_x->guaranteed(Attr::ANTIOPENUNITRANGE);
+    }
+
+    return false;
+}
+
+bool Sin::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
+    {
+    case Attr::DEFINED:
+    case Attr::UNITRANGE:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
+        return true;
+
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool Tan::guaranteed(Expression::Attribute a) const
+bool Cos::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-        return true;
-    }
-
-    return false;
-}
-
-bool ASin::guaranteed(Expression::Attribute a) const
-{
-    if (f_x->guaranteed(Expression::Attribute::UNITRANGE)) switch (a)
-    {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::UNITRANGE:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool ACos::guaranteed(Expression::Attribute a) const
+bool Tan::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::UNITRANGE)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
         return true;
-
-    case Expression::Attribute::CONTINUOUS:
-        return f_x->guaranteed(a);
-
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-        return f_x->guaranteed(Expression::Attribute::OPENUNITRANGE);
-
-    case Expression::Attribute::NONPOSITIVE:
-        return f_x->guaranteed(Expression::Attribute::POSITIVE) && f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE);
-
-    case Expression::Attribute::INCREASING:
-        return f_x->guaranteed(Expression::Attribute::DECREASING);
-
-    case Expression::Attribute::DECREASING:
-        return f_x->guaranteed(Expression::Attribute::INCREASING);
-
-    case Expression::Attribute::NONINCREASING:
-        return f_x->guaranteed(Expression::Attribute::NONDECREASING);
-
-    case Expression::Attribute::NONDECREASING:
-        return f_x->guaranteed(Expression::Attribute::NONINCREASING);
     }
 
     return false;
 }
 
-bool ATan::guaranteed(Expression::Attribute a) const
+bool ASin::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::UNITRANGE)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
         return f_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool SinH::guaranteed(Expression::Attribute a) const
+bool ACos::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::UNITRANGE)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
+    case Attr::DEFINED:
+    case Attr::NONNEGATIVE:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::CONTINUOUS:
+        return f_x->guaranteed(a);
+
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+        return f_x->guaranteed(Attr::OPENUNITRANGE);
+
+    case Attr::NONPOSITIVE:
+        return f_x->guaranteed(Attr::POSITIVE) && f_x->guaranteed(Attr::ANTIOPENUNITRANGE);
+
+    case Attr::INCREASING:
+        return f_x->guaranteed(Attr::DECREASING);
+
+    case Attr::DECREASING:
+        return f_x->guaranteed(Attr::INCREASING);
+
+    case Attr::NONINCREASING:
+        return f_x->guaranteed(Attr::NONDECREASING);
+
+    case Attr::NONDECREASING:
+        return f_x->guaranteed(Attr::NONINCREASING);
+    }
+
+    return false;
+}
+
+bool ATan::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
+    {
+    case Attr::DEFINED:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
+        return true;
+
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
         return f_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool CosH::guaranteed(Expression::Attribute a) const
+bool SinH::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
         return true;
 
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
+        return f_x->guaranteed(a);
+    }
+
+    return false;
+}
+
+bool CosH::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
+    {
+    case Attr::DEFINED:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::ANTIOPENUNITRANGE:
+    case Attr::BOUNDEDBELOW:
+        return true;
+
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a);
 
-    case Expression::Attribute::ANTIUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::NONZERO);
+    case Attr::ANTIUNITRANGE:
+        return f_x->guaranteed(Attr::NONZERO);
 
-    case Expression::Attribute::INCREASING:
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
+    case Attr::INCREASING:
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
         return false;
 
-    case Expression::Attribute::DECREASING:
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
+    case Attr::DECREASING:
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
         return false;
 
-    case Expression::Attribute::NONINCREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
+    case Attr::NONINCREASING:
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
         return false;
 
-    case Expression::Attribute::NONDECREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
+    case Attr::NONDECREASING:
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
         return false;
 
-    case Expression::Attribute::BOUNDEDABOVE:
-        return f_x->guaranteed(Expression::Attribute::BOUNDEDABOVE) && f_x->guaranteed(Expression::Attribute::BOUNDEDBELOW);
+    case Attr::BOUNDEDABOVE:
+        return f_x->guaranteed(Attr::BOUNDEDABOVE) && f_x->guaranteed(Attr::BOUNDEDBELOW);
     }
 
     return false;
 }
 
-bool TanH::guaranteed(Expression::Attribute a) const
+bool TanH::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::OPENUNITRANGE:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::UNITRANGE:
+    case Attr::OPENUNITRANGE:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
         return f_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool ASinH::guaranteed(Expression::Attribute a) const
+bool ASinH::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
+    case Attr::DEFINED:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
         return f_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool ACosH::guaranteed(Expression::Attribute a) const
+bool ACosH::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::POSITIVE) && f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE)) switch (a)
+    if (f_x->guaranteed(Attr::POSITIVE) && f_x->guaranteed(Attr::ANTIOPENUNITRANGE)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::NONNEGATIVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-    case Expression::Attribute::BOUNDEDABOVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
         return f_x->guaranteed(a);
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-        return f_x->guaranteed(Expression::Attribute::ANTIUNITRANGE);
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+        return f_x->guaranteed(Attr::ANTIUNITRANGE);
     }
 
     return false;
 }
 
-bool ATanH::guaranteed(Expression::Attribute a) const
+bool ATanH::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::OPENUNITRANGE)) switch (a)
+    if (f_x->guaranteed(Attr::OPENUNITRANGE)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
+    case Attr::DEFINED:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-        return f_x->guaranteed(a);
-    }
-
-    return false;
-}
-
-bool Erf::guaranteed(Expression::Attribute a) const
-{
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
-    {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::OPENUNITRANGE:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
-        return true;
-
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
         return f_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool Invert::guaranteed(Expression::Attribute a) const
+bool Erf::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::NONZERO)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONZERO:
+    case Attr::DEFINED:
+    case Attr::UNITRANGE:
+    case Attr::OPENUNITRANGE:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NEGATIVE:
-    case Expression::Attribute::NONPOSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
         return f_x->guaranteed(a);
-
-    case Expression::Attribute::UNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE);
-
-    case Expression::Attribute::ANTIUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::OPENUNITRANGE);
-
-    case Expression::Attribute::OPENUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::ANTIUNITRANGE);
-
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::UNITRANGE);
-
-    case Expression::Attribute::CONTINUOUS:
-        return f_x->guaranteed(Expression::Attribute::POSITIVE) || f_x->guaranteed(Expression::Attribute::NEGATIVE);
-
-    case Expression::Attribute::INCREASING:
-        return f_x->guaranteed(Expression::Attribute::DECREASING) && (f_x->guaranteed(Expression::Attribute::POSITIVE) || f_x->guaranteed(Expression::Attribute::NEGATIVE));
-
-    case Expression::Attribute::DECREASING:
-        return f_x->guaranteed(Expression::Attribute::INCREASING) && (f_x->guaranteed(Expression::Attribute::POSITIVE) || f_x->guaranteed(Expression::Attribute::NEGATIVE));
-
-    case Expression::Attribute::NONINCREASING:
-        return f_x->guaranteed(Expression::Attribute::NONDECREASING) && (f_x->guaranteed(Expression::Attribute::POSITIVE) || f_x->guaranteed(Expression::Attribute::NEGATIVE));
-
-    case Expression::Attribute::NONDECREASING:
-        return f_x->guaranteed(Expression::Attribute::NONINCREASING) && (f_x->guaranteed(Expression::Attribute::POSITIVE) || f_x->guaranteed(Expression::Attribute::NEGATIVE));
     }
 
     return false;
 }
 
-bool Negate::guaranteed(Expression::Attribute a) const
+bool Invert::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::NONZERO)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
+    case Attr::DEFINED:
+    case Attr::NONZERO:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::ANTIUNITRANGE:
-    case Expression::Attribute::OPENUNITRANGE:
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
         return f_x->guaranteed(a);
 
-    case Expression::Attribute::POSITIVE:
-        return f_x->guaranteed(Expression::Attribute::NEGATIVE);
+    case Attr::UNITRANGE:
+        return f_x->guaranteed(Attr::ANTIOPENUNITRANGE);
 
-    case Expression::Attribute::NEGATIVE:
-        return f_x->guaranteed(Expression::Attribute::POSITIVE);
+    case Attr::ANTIUNITRANGE:
+        return f_x->guaranteed(Attr::OPENUNITRANGE);
 
-    case Expression::Attribute::NONPOSITIVE:
-        return f_x->guaranteed(Expression::Attribute::NONNEGATIVE);
+    case Attr::OPENUNITRANGE:
+        return f_x->guaranteed(Attr::ANTIUNITRANGE);
 
-    case Expression::Attribute::NONNEGATIVE:
-        return f_x->guaranteed(Expression::Attribute::NONPOSITIVE);
+    case Attr::ANTIOPENUNITRANGE:
+        return f_x->guaranteed(Attr::UNITRANGE);
 
-    case Expression::Attribute::INCREASING:
-        return f_x->guaranteed(Expression::Attribute::DECREASING);
+    case Attr::CONTINUOUS:
+        return f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
 
-    case Expression::Attribute::DECREASING:
-        return f_x->guaranteed(Expression::Attribute::INCREASING);
+    case Attr::INCREASING:
+        return f_x->guaranteed(Attr::DECREASING) && (f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE));
 
-    case Expression::Attribute::NONINCREASING:
-        return f_x->guaranteed(Expression::Attribute::NONDECREASING);
+    case Attr::DECREASING:
+        return f_x->guaranteed(Attr::INCREASING) && (f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE));
 
-    case Expression::Attribute::NONDECREASING:
-        return f_x->guaranteed(Expression::Attribute::NONINCREASING);
+    case Attr::NONINCREASING:
+        return f_x->guaranteed(Attr::NONDECREASING) && (f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE));
 
-    case Expression::Attribute::BOUNDEDABOVE:
-        return f_x->guaranteed(Expression::Attribute::BOUNDEDBELOW);
-
-    case Expression::Attribute::BOUNDEDBELOW:
-        return f_x->guaranteed(Expression::Attribute::BOUNDEDABOVE);
+    case Attr::NONDECREASING:
+        return f_x->guaranteed(Attr::NONINCREASING) && (f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE));
     }
 
     return false;
 }
 
-bool Secant::guaranteed(Expression::Attribute a) const
+bool Negate::guaranteed(Attr a) const
 {
-    return false;
-}
-
-bool SoftPP::guaranteed(Expression::Attribute a) const
-{
-    return false;
-}
-
-bool Spence::guaranteed(Expression::Attribute a) const
-{
-    return false;
-}
-
-bool Square::guaranteed(Expression::Attribute a) const
-{
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
         return true;
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::ANTIUNITRANGE:
-    case Expression::Attribute::OPENUNITRANGE:
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::NONZERO:
+    case Attr::UNITRANGE:
+    case Attr::ANTIUNITRANGE:
+    case Attr::OPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a);
 
-    case Expression::Attribute::POSITIVE:
-        return f_x->guaranteed(Expression::Attribute::NONZERO);
+    case Attr::POSITIVE:
+        return f_x->guaranteed(Attr::NEGATIVE);
 
-    case Expression::Attribute::INCREASING:
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
-        return false;
+    case Attr::NEGATIVE:
+        return f_x->guaranteed(Attr::POSITIVE);
 
-    case Expression::Attribute::DECREASING:
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
-        return false;
+    case Attr::NONPOSITIVE:
+        return f_x->guaranteed(Attr::NONNEGATIVE);
 
-    case Expression::Attribute::NONINCREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
-        return false;
+    case Attr::NONNEGATIVE:
+        return f_x->guaranteed(Attr::NONPOSITIVE);
 
-    case Expression::Attribute::NONDECREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
-        return false;
+    case Attr::INCREASING:
+        return f_x->guaranteed(Attr::DECREASING);
 
-    case Expression::Attribute::BOUNDEDABOVE:
-        return f_x->guaranteed(Expression::Attribute::BOUNDEDABOVE) && f_x->guaranteed(Expression::Attribute::BOUNDEDBELOW);
+    case Attr::DECREASING:
+        return f_x->guaranteed(Attr::INCREASING);
+
+    case Attr::NONINCREASING:
+        return f_x->guaranteed(Attr::NONDECREASING);
+
+    case Attr::NONDECREASING:
+        return f_x->guaranteed(Attr::NONINCREASING);
+
+    case Attr::BOUNDEDABOVE:
+        return f_x->guaranteed(Attr::BOUNDEDBELOW);
+
+    case Attr::BOUNDEDBELOW:
+        return f_x->guaranteed(Attr::BOUNDEDABOVE);
     }
 
     return false;
 }
 
-bool XConic::guaranteed(Expression::Attribute a) const
+bool Secant::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::POSITIVE) && f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE)) switch (a)
+    return false;
+}
+
+bool SoftPP::guaranteed(Attr a) const
+{
+    return false;
+}
+
+bool Spence::guaranteed(Attr a) const
+{
+    return false;
+}
+
+bool Square::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::NONNEGATIVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::CONTINUOUS:
-    case Expression::Attribute::INCREASING:
-    case Expression::Attribute::DECREASING:
-    case Expression::Attribute::NONINCREASING:
-    case Expression::Attribute::NONDECREASING:
-    case Expression::Attribute::BOUNDEDABOVE:
+    case Attr::NONZERO:
+    case Attr::UNITRANGE:
+    case Attr::ANTIUNITRANGE:
+    case Attr::OPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a);
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-        return f_x->guaranteed(Expression::Attribute::ANTIUNITRANGE);
+    case Attr::POSITIVE:
+        return f_x->guaranteed(Attr::NONZERO);
+
+    case Attr::INCREASING:
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
+        return false;
+
+    case Attr::DECREASING:
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
+        return false;
+
+    case Attr::NONINCREASING:
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
+        return false;
+
+    case Attr::NONDECREASING:
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
+        return false;
+
+    case Attr::BOUNDEDABOVE:
+        return f_x->guaranteed(Attr::BOUNDEDABOVE) && f_x->guaranteed(Attr::BOUNDEDBELOW);
     }
 
     return false;
 }
 
-bool YConic::guaranteed(Expression::Attribute a) const
+bool XConic::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::POSITIVE) && f_x->guaranteed(Attr::ANTIOPENUNITRANGE)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::ANTIOPENUNITRANGE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::NONNEGATIVE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
         return f_x->guaranteed(a);
 
-    case Expression::Attribute::ANTIUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::NONZERO);
-
-    case Expression::Attribute::INCREASING:
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
-        return false;
-
-    case Expression::Attribute::DECREASING:
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
-        return false;
-
-    case Expression::Attribute::NONINCREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
-        return false;
-
-    case Expression::Attribute::NONDECREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
-        return false;
-
-    case Expression::Attribute::BOUNDEDABOVE:
-        return f_x->guaranteed(Expression::Attribute::BOUNDEDABOVE) && f_x->guaranteed(Expression::Attribute::BOUNDEDBELOW);
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+        return f_x->guaranteed(Attr::ANTIUNITRANGE);
     }
 
     return false;
 }
 
-bool ZConic::guaranteed(Expression::Attribute a) const
+bool YConic::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::UNITRANGE)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONNEGATIVE:
-    case Expression::Attribute::UNITRANGE:
-    case Expression::Attribute::BOUNDEDABOVE:
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::DEFINED:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::ANTIOPENUNITRANGE:
+    case Attr::BOUNDEDBELOW:
         return true;
 
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a);
 
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-        return f_x->guaranteed(Expression::Attribute::OPENUNITRANGE);
+    case Attr::ANTIUNITRANGE:
+        return f_x->guaranteed(Attr::NONZERO);
 
-    case Expression::Attribute::NONPOSITIVE:
-        return f_x->guaranteed(Expression::Attribute::ANTIOPENUNITRANGE);
-
-    case Expression::Attribute::OPENUNITRANGE:
-        return f_x->guaranteed(Expression::Attribute::NONZERO);
-
-    case Expression::Attribute::INCREASING:
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
+    case Attr::INCREASING:
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
         return false;
 
-    case Expression::Attribute::DECREASING:
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && f_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && f_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
+    case Attr::DECREASING:
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
         return false;
 
-    case Expression::Attribute::NONINCREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
+    case Attr::NONINCREASING:
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
         return false;
 
-    case Expression::Attribute::NONDECREASING:
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && f_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && f_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
+    case Attr::NONDECREASING:
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
+        return false;
+
+    case Attr::BOUNDEDABOVE:
+        return f_x->guaranteed(Attr::BOUNDEDABOVE) && f_x->guaranteed(Attr::BOUNDEDBELOW);
+    }
+
+    return false;
+}
+
+bool ZConic::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::UNITRANGE)) switch (a)
+    {
+    case Attr::DEFINED:
+    case Attr::NONNEGATIVE:
+    case Attr::UNITRANGE:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
+        return true;
+
+    case Attr::CONTINUOUS:
+        return f_x->guaranteed(a);
+
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+        return f_x->guaranteed(Attr::OPENUNITRANGE);
+
+    case Attr::NONPOSITIVE:
+        return f_x->guaranteed(Attr::ANTIOPENUNITRANGE);
+
+    case Attr::OPENUNITRANGE:
+        return f_x->guaranteed(Attr::NONZERO);
+
+    case Attr::INCREASING:
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        return false;
+
+    case Attr::DECREASING:
+        if (f_x->guaranteed(Attr::DECREASING) && f_x->guaranteed(Attr::NEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::INCREASING) && f_x->guaranteed(Attr::POSITIVE)) return true;
+        return false;
+
+    case Attr::NONINCREASING:
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        return false;
+
+    case Attr::NONDECREASING:
+        if (f_x->guaranteed(Attr::NONDECREASING) && f_x->guaranteed(Attr::NONPOSITIVE)) return true;
+        if (f_x->guaranteed(Attr::NONINCREASING) && f_x->guaranteed(Attr::NONNEGATIVE)) return true;
         return false;
     }
 
     return false;
 }
 
-bool Add::guaranteed(Expression::Attribute a) const
+bool Add::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED) && g_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED) && g_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
+    case Attr::DEFINED:
         return true;
 
-    case Expression::Attribute::NONZERO:
-        if (f_x->guaranteed(Expression::Attribute::POSITIVE) && g_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NEGATIVE) && g_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONPOSITIVE) && g_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONNEGATIVE) && g_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
+    case Attr::NONZERO:
+        if (f_x->guaranteed(Attr::POSITIVE) && g_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NEGATIVE) && g_x->guaranteed(Attr::NONPOSITIVE)) return true;
+        if (f_x->guaranteed(Attr::NONPOSITIVE) && g_x->guaranteed(Attr::NEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONNEGATIVE) && g_x->guaranteed(Attr::POSITIVE)) return true;
         return false;
 
-    case Expression::Attribute::POSITIVE:
-        if (f_x->guaranteed(Expression::Attribute::POSITIVE) && g_x->guaranteed(Expression::Attribute::NONNEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONNEGATIVE) && g_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
+    case Attr::POSITIVE:
+        if (f_x->guaranteed(Attr::POSITIVE) && g_x->guaranteed(Attr::NONNEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NONNEGATIVE) && g_x->guaranteed(Attr::POSITIVE)) return true;
         return false;
 
-    case Expression::Attribute::NEGATIVE:
-        if (f_x->guaranteed(Expression::Attribute::NEGATIVE) && g_x->guaranteed(Expression::Attribute::NONPOSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONPOSITIVE) && g_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
+    case Attr::NEGATIVE:
+        if (f_x->guaranteed(Attr::NEGATIVE) && g_x->guaranteed(Attr::NONPOSITIVE)) return true;
+        if (f_x->guaranteed(Attr::NONPOSITIVE) && g_x->guaranteed(Attr::NEGATIVE)) return true;
         return false;
 
-    case Expression::Attribute::NONPOSITIVE:
+    case Attr::NONPOSITIVE:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::NONNEGATIVE:
+    case Attr::NONNEGATIVE:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::UNITRANGE:
+    case Attr::UNITRANGE:
         break;
 
-    case Expression::Attribute::ANTIUNITRANGE:
+    case Attr::ANTIUNITRANGE:
         break;
 
-    case Expression::Attribute::OPENUNITRANGE:
+    case Attr::OPENUNITRANGE:
         break;
 
-    case Expression::Attribute::ANTIOPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
         break;
 
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::INCREASING:
-        if (f_x->guaranteed(Expression::Attribute::INCREASING) && g_x->guaranteed(Expression::Attribute::NONDECREASING)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONDECREASING) && g_x->guaranteed(Expression::Attribute::INCREASING)) return true;
+    case Attr::INCREASING:
+        if (f_x->guaranteed(Attr::INCREASING) && g_x->guaranteed(Attr::NONDECREASING)) return true;
+        if (f_x->guaranteed(Attr::NONDECREASING) && g_x->guaranteed(Attr::INCREASING)) return true;
         return false;
 
-    case Expression::Attribute::DECREASING:
-        if (f_x->guaranteed(Expression::Attribute::DECREASING) && g_x->guaranteed(Expression::Attribute::NONINCREASING)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NONINCREASING) && g_x->guaranteed(Expression::Attribute::DECREASING)) return true;
+    case Attr::DECREASING:
+        if (f_x->guaranteed(Attr::DECREASING) && g_x->guaranteed(Attr::NONINCREASING)) return true;
+        if (f_x->guaranteed(Attr::NONINCREASING) && g_x->guaranteed(Attr::DECREASING)) return true;
         return false;
 
-    case Expression::Attribute::NONINCREASING:
+    case Attr::NONINCREASING:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::NONDECREASING:
+    case Attr::NONDECREASING:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::BOUNDEDABOVE:
+    case Attr::BOUNDEDABOVE:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::BOUNDEDBELOW:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
     }
 
     return false;
 }
 
-bool Mul::guaranteed(Expression::Attribute a) const
+bool Mul::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::DEFINED) && g_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::DEFINED) && g_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
+    case Attr::DEFINED:
         return true;
 
-    case Expression::Attribute::NONZERO:
+    case Attr::NONZERO:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::POSITIVE:
-        if (f_x->guaranteed(Expression::Attribute::POSITIVE) && g_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NEGATIVE) && g_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
+    case Attr::POSITIVE:
+        if (f_x->guaranteed(Attr::POSITIVE) && g_x->guaranteed(Attr::POSITIVE)) return true;
+        if (f_x->guaranteed(Attr::NEGATIVE) && g_x->guaranteed(Attr::NEGATIVE)) return true;
         return false;
 
-    case Expression::Attribute::NEGATIVE:
-        if (f_x->guaranteed(Expression::Attribute::POSITIVE) && g_x->guaranteed(Expression::Attribute::NEGATIVE)) return true;
-        if (f_x->guaranteed(Expression::Attribute::NEGATIVE) && g_x->guaranteed(Expression::Attribute::POSITIVE)) return true;
+    case Attr::NEGATIVE:
+        if (f_x->guaranteed(Attr::POSITIVE) && g_x->guaranteed(Attr::NEGATIVE)) return true;
+        if (f_x->guaranteed(Attr::NEGATIVE) && g_x->guaranteed(Attr::POSITIVE)) return true;
         return false;
 
-    case Expression::Attribute::NONPOSITIVE:
+    case Attr::NONPOSITIVE:
         break;
 
-    case Expression::Attribute::NONNEGATIVE:
+    case Attr::NONNEGATIVE:
         break;
 
-    case Expression::Attribute::UNITRANGE:
+    case Attr::UNITRANGE:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::ANTIUNITRANGE:
+    case Attr::ANTIUNITRANGE:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::OPENUNITRANGE:
+    case Attr::OPENUNITRANGE:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::ANTIOPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::INCREASING:
+    case Attr::INCREASING:
         break;
 
-    case Expression::Attribute::DECREASING:
+    case Attr::DECREASING:
         break;
 
-    case Expression::Attribute::NONINCREASING:
+    case Attr::NONINCREASING:
         break;
 
-    case Expression::Attribute::NONDECREASING:
+    case Attr::NONDECREASING:
         break;
 
-    case Expression::Attribute::BOUNDEDABOVE:
+    case Attr::BOUNDEDABOVE:
         break;
 
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::BOUNDEDBELOW:
         break;
     }
 
     return false;
 }
 
-bool Pow::guaranteed(Expression::Attribute a) const
+bool Pow::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Expression::Attribute::POSITIVE) && g_x->guaranteed(Expression::Attribute::DEFINED)) switch (a)
+    if (f_x->guaranteed(Attr::POSITIVE) && g_x->guaranteed(Attr::DEFINED)) switch (a)
     {
-    case Expression::Attribute::DEFINED:
-    case Expression::Attribute::NONZERO:
-    case Expression::Attribute::POSITIVE:
-    case Expression::Attribute::NONNEGATIVE:
+    case Attr::DEFINED:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NONNEGATIVE:
         return true;
 
-    case Expression::Attribute::UNITRANGE:
+    case Attr::UNITRANGE:
         break;
 
-    case Expression::Attribute::ANTIUNITRANGE:
+    case Attr::ANTIUNITRANGE:
         break;
 
-    case Expression::Attribute::OPENUNITRANGE:
+    case Attr::OPENUNITRANGE:
         break;
 
-    case Expression::Attribute::ANTIOPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
         break;
 
-    case Expression::Attribute::CONTINUOUS:
+    case Attr::CONTINUOUS:
         return f_x->guaranteed(a) && g_x->guaranteed(a);
 
-    case Expression::Attribute::INCREASING:
+    case Attr::INCREASING:
         break;
 
-    case Expression::Attribute::DECREASING:
+    case Attr::DECREASING:
         break;
 
-    case Expression::Attribute::NONINCREASING:
+    case Attr::NONINCREASING:
         break;
 
-    case Expression::Attribute::NONDECREASING:
+    case Attr::NONDECREASING:
         break;
 
-    case Expression::Attribute::BOUNDEDABOVE:
+    case Attr::BOUNDEDABOVE:
         break;
 
-    case Expression::Attribute::BOUNDEDBELOW:
+    case Attr::BOUNDEDBELOW:
         break;
     }
 
@@ -4853,7 +3685,7 @@ bool Expression::Guaranteed(Attribute a) const
 
 void Expression::Touch()
 {
-    ++Expression::data::dirtyLevel;
+    ++Expr::dirtyLevel;
 }
 
 int32_t Expression::Depth() const noexcept
@@ -4963,6 +3795,12 @@ double bernoulli(double const x)
     return total + x - x2 / 4;
 }
 
+double ISp(double x)
+{
+    if (x > 0) return x * x / 2 - ISp(-x) + 1.64493406684822644e-00;
+    return -bernoulli(-log1p(exp(x)));
+}
+
 double Li2(double x)
 {
     double const PiPiDiv6 = 1.64493406684822644e-00;
@@ -4979,12 +3817,6 @@ double Li2(double x)
         if (x < -1) return -Li2(1 / x) - PiPiDiv6 - log(-x) * log(-x) / 2;
         return bernoulli(-log1p(-x));
     }
-}
-
-double ISp(double x)
-{
-    if (x > 0) return x * x / 2 - ISp(-x) + 1.64493406684822644e-00;
-    return -bernoulli(-log1p(exp(x)));
 }
 
 //**********************************************************************************************************************

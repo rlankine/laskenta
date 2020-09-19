@@ -91,8 +91,8 @@ struct Expression final
     friend Expression atanh(Expression const&);
     friend Expression erf(Expression const&);
 
-    friend Expression ISp(Expression const&);
-    friend Expression Li2(Expression const&);
+    friend Expression ISp(Expression const&);  // Integral of Softplus function
+    friend Expression Li2(Expression const&);  // Polylog2 a.k.a. dilogarithm
 
     friend Expression operator+(Expression const&);
     friend Expression operator-(Expression const&);
@@ -154,9 +154,19 @@ inline Expression pow(Variable const& r, Variable const& s) { return pow(Express
 double ISp(double);  // Integral of Softplus
 double Li2(double);  // Polylog2
 
+inline double logistic(double x)
+{
+    return exp(x) / (exp(x) + 1);
+}
+
 inline double sign(double x)
 {
     return double(x > 0) - double(x < 0);
+}
+
+inline double softplus(double x)
+{
+    return log(1 + exp(x));
 }
 
 //**********************************************************************************************************************
