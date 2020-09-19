@@ -25,7 +25,7 @@ SOFTWARE.
 
 #pragma once
 
-#include <iostream>
+// #include <iostream>
 #include <string>
 
 //**********************************************************************************************************************
@@ -91,6 +91,9 @@ struct Expression final
     friend Expression atanh(Expression const&);
     friend Expression erf(Expression const&);
 
+    friend Expression ISp(Expression const&);
+    friend Expression Li2(Expression const&);
+
     friend Expression operator+(Expression const&);
     friend Expression operator-(Expression const&);
     friend Expression operator+(Expression const&, Expression const&);
@@ -125,32 +128,35 @@ private:
 
 //**********************************************************************************************************************
 
+inline Expression operator+(Variable const& r) { return +Expression(r); }
+inline Expression operator-(Variable const& r) { return -Expression(r); }
+
 inline Expression operator+(double r, Variable const& s) { return Expression(r) + s; }
 inline Expression operator-(double r, Variable const& s) { return Expression(r) - s; }
 inline Expression operator*(double r, Variable const& s) { return Expression(r) * s; }
 inline Expression operator/(double r, Variable const& s) { return Expression(r) / s; }
+inline Expression pow(double r, Variable const& s) { return pow(Expression(r), s); }
 
 inline Expression operator+(Variable const& r, double s) { return Expression(r) + s; }
 inline Expression operator-(Variable const& r, double s) { return Expression(r) - s; }
 inline Expression operator*(Variable const& r, double s) { return Expression(r) * s; }
 inline Expression operator/(Variable const& r, double s) { return Expression(r) / s; }
+inline Expression pow(Variable const& r, double s) { return pow(Expression(r), s); }
 
 inline Expression operator+(Variable const& r, Variable const& s) { return Expression(r) + s; }
 inline Expression operator-(Variable const& r, Variable const& s) { return Expression(r) - s; }
 inline Expression operator*(Variable const& r, Variable const& s) { return Expression(r) * s; }
 inline Expression operator/(Variable const& r, Variable const& s) { return Expression(r) / s; }
-
-inline Expression operator+(Variable const& r) { return +Expression(r); }
-inline Expression operator-(Variable const& r) { return -Expression(r); }
+inline Expression pow(Variable const& r, Variable const& s) { return pow(Expression(r), s); }
 
 //**********************************************************************************************************************
 
-namespace std
-{
+double ISp(double);  // Integral of Softplus
+double Li2(double);  // Polylog2
+
 inline double sign(double x)
 {
     return double(x > 0) - double(x < 0);
 }
-} // end-of-namespace std
 
 //**********************************************************************************************************************
