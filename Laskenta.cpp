@@ -24,7 +24,6 @@ SOFTWARE.
 */
 
 #include "Laskenta.h"
-
 // #define VERBOSE
 #include "Tools.h"
 
@@ -35,8 +34,6 @@ SOFTWARE.
 
 using std::cout;
 using std::endl;
-
-#define OPTIMIZATION PROFILER
 
 //**********************************************************************************************************************
 
@@ -64,7 +61,6 @@ struct Expression::data : public Shared
     virtual Expression::data const* sin() const;
     virtual Expression::data const* cos() const;
     virtual Expression::data const* tan() const;
-    virtual Expression::data const* sec() const;
     virtual Expression::data const* asin() const;
     virtual Expression::data const* acos() const;
     virtual Expression::data const* atan() const;
@@ -77,6 +73,9 @@ struct Expression::data : public Shared
     virtual Expression::data const* erf() const;
     virtual Expression::data const* invert() const;
     virtual Expression::data const* negate() const;
+    virtual Expression::data const* secant() const;
+    virtual Expression::data const* softpp() const;
+    virtual Expression::data const* spence() const;
     virtual Expression::data const* square() const;
     virtual Expression::data const* xconic() const;
     virtual Expression::data const* yconic() const;
@@ -101,8 +100,8 @@ struct Expression::data : public Shared
 
     enum class NodeType
     {
-        ABS, SIGN, SQRT, CBRT, EXP, LOG, SIN, COS, TAN, SEC, ASIN, ACOS, ATAN, SINH, COSH, TANH, ASINH, ACOSH, ATANH, ERF,
-        INVERT, NEGATE, SQUARE, XCONIC, YCONIC, ZCONIC, CONSTANT, VARIABLE, ADD, MUL, POW
+        ABS, SIGN, SQRT, CBRT, EXP, LOG, SIN, COS, TAN, ASIN, ACOS, ATAN, SINH, COSH, TANH, ASINH, ACOSH, ATANH, ERF,
+        INVERT, NEGATE, SECANT, SOFTPP, SPENCE, SQUARE, XCONIC, YCONIC, ZCONIC, CONSTANT, VARIABLE, ADD, MUL, POW
     };
 
     virtual bool is(NodeType) const = 0;
@@ -317,7 +316,6 @@ struct ConstantNode final : public Expression::data, private ObjectGuard<Constan
     Expression::data const* sin() const override final;
     Expression::data const* cos() const override final;
     Expression::data const* tan() const override final;
-    Expression::data const* sec() const override final;
     Expression::data const* asin() const override final;
     Expression::data const* acos() const override final;
     Expression::data const* atan() const override final;
@@ -330,6 +328,9 @@ struct ConstantNode final : public Expression::data, private ObjectGuard<Constan
     Expression::data const* erf() const override final;
     Expression::data const* invert() const override final;
     Expression::data const* negate() const override final;
+    Expression::data const* secant() const override final;
+    Expression::data const* softpp() const override final;
+    Expression::data const* spence() const override final;
     Expression::data const* square() const override final;
     Expression::data const* xconic() const override final;
     Expression::data const* yconic() const override final;
@@ -613,24 +614,6 @@ struct Tan final : public FunctionNode, private ObjectGuard<Tan>
 };
 
 /***********************************************************************************************************************
-*** Sec
-***********************************************************************************************************************/
-
-struct Sec final : public FunctionNode, private ObjectGuard<Sec>
-{
-    Sec(Expression::data const* p) : FunctionNode(p, NodeType::SEC) { }
-
-    bool guaranteed(Expression::Attribute) const override final;
-
-    Expression::data const* invert() const;
-
-    Expression::data const* derivative(Variable const&) const override final;
-    double value() const override final;
-
-    void print(std::ostream&) const override final;
-};
-
-/***********************************************************************************************************************
 *** ASin
 ***********************************************************************************************************************/
 
@@ -873,7 +856,6 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
     Expression::data const* sin() const override final;
     Expression::data const* cos() const override final;
     Expression::data const* tan() const override final;
-    Expression::data const* sec() const override final;
     Expression::data const* asin() const override final;
     Expression::data const* atan() const override final;
     Expression::data const* sinh() const override final;
@@ -884,6 +866,7 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
     Expression::data const* erf() const override final;
     Expression::data const* invert() const override final;
     Expression::data const* negate() const override final;
+    Expression::data const* secant() const override final;
     Expression::data const* square() const override final;
     Expression::data const* yconic() const override final;
     Expression::data const* zconic() const override final;
@@ -893,6 +876,56 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
 
     bool easyInvert() const override final { return f_x->easyInvert(); }
     bool easyNegate() const override final { return true; }
+
+    bool guaranteed(Expression::Attribute) const override final;
+
+    Expression::data const* derivative(Variable const&) const override final;
+    double value() const override final;
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** Secant
+***********************************************************************************************************************/
+
+struct Secant final : public FunctionNode, private ObjectGuard<Secant>
+{
+    Secant(Expression::data const* p) : FunctionNode(p, NodeType::SECANT) { }
+
+    bool guaranteed(Expression::Attribute) const override final;
+
+    Expression::data const* invert() const;
+
+    Expression::data const* derivative(Variable const&) const override final;
+    double value() const override final;
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** SoftPP
+***********************************************************************************************************************/
+
+struct SoftPP final : public FunctionNode, private ObjectGuard<SoftPP>
+{
+    SoftPP(Expression::data const* p) : FunctionNode(p, NodeType::SOFTPP) { }
+
+    bool guaranteed(Expression::Attribute) const override final;
+
+    Expression::data const* derivative(Variable const&) const override final;
+    double value() const override final;
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** Spence
+***********************************************************************************************************************/
+
+struct Spence final : public FunctionNode, private ObjectGuard<Spence>
+{
+    Spence(Expression::data const* p) : FunctionNode(p, NodeType::SPENCE) { }
 
     bool guaranteed(Expression::Attribute) const override final;
 
@@ -1022,9 +1055,6 @@ Expression::data const* Expression::data::function(NodeType n) const
     case NodeType::TAN:
         return new Tan(Clone(this));
 
-    case NodeType::SEC:
-        return new Sec(Clone(this));
-
     case NodeType::ASIN:
         return new ASin(Clone(this));
 
@@ -1060,6 +1090,15 @@ Expression::data const* Expression::data::function(NodeType n) const
 
     case NodeType::NEGATE:
         return new Negate(Clone(this));
+
+    case NodeType::SECANT:
+        return new Secant(Clone(this));
+
+    case NodeType::SOFTPP:
+        return new SoftPP(Clone(this));
+
+    case NodeType::SPENCE:
+        return new Spence(Clone(this));
 
     case NodeType::SQUARE:
         return new Square(Clone(this));
@@ -1302,7 +1341,7 @@ Expression::data const* Expression::data::sign() const
 
 Expression::data const* ConstantNode::sign() const
 {
-    return constant(double(n > 0) - (n < 0));
+    return constant(::sign(n));
 }
 
 Expression::data const* Abs::sign() const  // sign(abs(x)) ----> abs(sign(x))
@@ -1659,25 +1698,6 @@ Expression::data const* Negate::tan() const  // tan(-x) ----> -tan(x)
 }
 
 /***********************************************************************************************************************
-*** sec()
-***********************************************************************************************************************/
-
-Expression::data const* Expression::data::sec() const
-{
-    return function(NodeType::SEC);
-}
-
-Expression::data const* ConstantNode::sec() const
-{
-    return constant(1 / std::cos(n));
-}
-
-Expression::data const* Negate::sec() const  // sec(-x) ----> sec(x)
-{
-    return f_x->sec();
-}
-
-/***********************************************************************************************************************
 *** asin()
 ***********************************************************************************************************************/
 
@@ -2001,14 +2021,9 @@ Expression::data const* ConstantNode::invert() const
     return constant(1 / n);
 }
 
-Expression::data const* Cos::invert() const  // 1/cos(x) ----> sec(x)
+Expression::data const* Cos::invert() const  // 1/cos(x) ----> secant(x)
 {
-    return f_x->sec();
-}
-
-Expression::data const* Sec::invert() const  // 1/sec(x) ----> cos(x)
-{
-    return f_x->cos();
+    return f_x->secant();
 }
 
 Expression::data const* Invert::invert() const  // 1/(1/x) ----> x  ; iff x != 0
@@ -2024,6 +2039,11 @@ Expression::data const* Negate::invert() const  // 1/(-x) ----> -(1/x)
     Erase(step0);
 
     return step1;
+}
+
+Expression::data const* Secant::invert() const  // 1/secant(x) ----> cos(x)
+{
+    return f_x->cos();
 }
 
 Expression::data const* Pow::invert() const  // 1/(x^y) ---> x ^ -y
@@ -2053,6 +2073,53 @@ Expression::data const* ConstantNode::negate() const
 Expression::data const* Negate::negate() const  // -(-x) ----> x
 {
     return Clone(f_x);
+}
+
+/***********************************************************************************************************************
+*** secant()
+***********************************************************************************************************************/
+
+Expression::data const* Expression::data::secant() const
+{
+    return function(NodeType::SECANT);
+}
+
+Expression::data const* ConstantNode::secant() const
+{
+    return constant(1 / std::cos(n));
+}
+
+Expression::data const* Negate::secant() const  // secant(-x) ----> secant(x)
+{
+    return f_x->secant();
+}
+
+/***********************************************************************************************************************
+*** softpp()
+***********************************************************************************************************************/
+
+Expression::data const* Expression::data::softpp() const
+{
+    return function(NodeType::SOFTPP);
+}
+
+Expression::data const* ConstantNode::softpp() const
+{
+    return constant(ISp(n));
+}
+
+/***********************************************************************************************************************
+*** spence()
+***********************************************************************************************************************/
+
+Expression::data const* Expression::data::spence() const
+{
+    return function(NodeType::SPENCE);
+}
+
+Expression::data const* ConstantNode::spence() const
+{
+    return constant(Li2(n));
 }
 
 /***********************************************************************************************************************
@@ -2321,7 +2388,6 @@ Expression::data const* ConstantNode::mul(Expression::data const* p) const
     if (p->is(NodeType::CONSTANT)) return constant(n * p->evaluate());
     if (n == 0) return Clone(this);
     if (n == 1) return Clone(p);
-    if (n == 2) return p->add(p);
     if (n == -1) return p->negate();
     return Expression::data::mul(p);
 }
@@ -2331,7 +2397,6 @@ Expression::data const* ConstantNode::commutative_mul(Expression::data const* p)
     if (p->is(NodeType::CONSTANT)) return constant(n * p->evaluate());
     if (n == 0) return Clone(this);
     if (n == 1) return Clone(p);
-    if (n == 2) return p->add(p);
     if (n == -1) return p->negate();
     return Expression::data::commutative_mul(p);
 }
@@ -2714,24 +2779,8 @@ Expression::data const* Tan::derivative(Variable const& r) const
     // D(tan(f_x)) = D(f_x) * 1/cos(f_x)^2
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->sec();
+    auto step1 = f_x->secant();
     auto step2 = step1->square();
-    auto step3 = step0->mul(step2);
-
-    Erase(step0);
-    Erase(step1);
-    Erase(step2);
-
-    return step3;
-}
-
-Expression::data const* Sec::derivative(Variable const& r) const
-{
-    // D(sec(f_x)) = D(f_x) * tan(f_x)*sec(f_x)
-
-    auto step0 = f_x->derive(r);
-    auto step1 = f_x->tan();
-    auto step2 = mul(step1);
     auto step3 = step0->mul(step2);
 
     Erase(step0);
@@ -2937,6 +2986,62 @@ Expression::data const* Negate::derivative(Variable const& r) const
     return step1;
 }
 
+Expression::data const* Secant::derivative(Variable const& r) const
+{
+    // D(secant(f_x)) = D(f_x) * tan(f_x)*secant(f_x)
+
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->tan();
+    auto step2 = mul(step1);
+    auto step3 = step0->mul(step2);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+
+    return step3;
+}
+
+Expression::data const* SoftPP::derivative(Variable const& r) const
+{
+    // D(-Li2(-exp(f_x))) = D(f_x) * log(1+exp(f_x))
+
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->exp();
+    auto step2 = step1->add(literal1);
+    auto step3 = step2->log();
+    auto step4 = step0->mul(step3);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+    Erase(step3);
+
+    return step4;
+}
+
+Expression::data const* Spence::derivative(Variable const& r) const
+{
+    // D(Li2(f_x)) = D(f_x) * log(1-f_x)/f_x
+
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->negate();
+    auto step2 = step1->add(literal1);
+    auto step3 = step2->log();
+    auto step4 = f_x->invert();
+    auto step5 = step3->mul(step4);
+    auto step6 = step0->mul(step5);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+    Erase(step3);
+    Erase(step4);
+    Erase(step5);
+
+    return step6;
+}
+
 Expression::data const* Square::derivative(Variable const& r) const
 {
     // D(f_x^2) = D(f_x) * 2*f_x
@@ -3082,7 +3187,7 @@ double Abs::value() const
 
 double Sign::value() const
 {
-    return std::sign(f_x->evaluate());
+    return ::sign(f_x->evaluate());
 }
 
 double Sqrt::value() const
@@ -3118,11 +3223,6 @@ double Cos::value() const
 double Tan::value() const
 {
     return std::tan(f_x->evaluate());
-}
-
-double Sec::value() const
-{
-    return 1 / std::cos(f_x->evaluate());
 }
 
 double ASin::value() const
@@ -3183,6 +3283,21 @@ double Invert::value() const
 double Negate::value() const
 {
     return -f_x->evaluate();
+}
+
+double Secant::value() const
+{
+    return 1 / std::cos(f_x->evaluate());
+}
+
+double SoftPP::value() const
+{
+    return ISp(f_x->evaluate());
+}
+
+double Spence::value() const
+{
+    return Li2(f_x->evaluate());
 }
 
 double Square::value() const
@@ -3540,11 +3655,6 @@ bool Tan::guaranteed(Expression::Attribute a) const
         return true;
     }
 
-    return false;
-}
-
-bool Sec::guaranteed(Expression::Attribute a) const
-{
     return false;
 }
 
@@ -3922,6 +4032,21 @@ bool Negate::guaranteed(Expression::Attribute a) const
         return f_x->guaranteed(Expression::Attribute::BOUNDEDABOVE);
     }
 
+    return false;
+}
+
+bool Secant::guaranteed(Expression::Attribute a) const
+{
+    return false;
+}
+
+bool SoftPP::guaranteed(Expression::Attribute a) const
+{
+    return false;
+}
+
+bool Spence::guaranteed(Expression::Attribute a) const
+{
     return false;
 }
 
@@ -4348,13 +4473,6 @@ void Tan::print(std::ostream& out) const
     out << ")";
 }
 
-void Sec::print(std::ostream& out) const
-{
-    out << "sec(";
-    f_x->print(out);
-    out << ")";
-}
-
 void ASin::print(std::ostream& out) const
 {
     out << "asin(";
@@ -4438,6 +4556,27 @@ void Negate::print(std::ostream& out) const
     if (f_x->is(NodeType::ADD)) out << "(";
     f_x->print(out);
     if (f_x->is(NodeType::ADD)) out << ")";
+}
+
+void Secant::print(std::ostream& out) const
+{
+    out << "secant(";
+    f_x->print(out);
+    out << ")";
+}
+
+void SoftPP::print(std::ostream& out) const
+{
+    out << "softpp(";
+    f_x->print(out);
+    out << ")";
+}
+
+void Spence::print(std::ostream& out) const
+{
+    out << "spence(";
+    f_x->print(out);
+    out << ")";
 }
 
 void Square::print(std::ostream& out) const
@@ -4636,6 +4775,16 @@ Expression erf(Expression const& r)
     return r.pData->erf();
 }
 
+Expression ISp(Expression const& r)
+{
+    return r.pData->softpp();
+}
+
+Expression Li2(Expression const& r)
+{
+    return r.pData->spence();
+}
+
 Expression operator+(Expression const& r)
 {
     return r;
@@ -4780,5 +4929,62 @@ Variable::data const* Variable::id() const
     return pData;
 }
 
-//**********************************************************************************************************************
+/***********************************************************************************************************************
+*** Additional functions
+***********************************************************************************************************************/
 
+double bernoulli(double const x)
+{
+    assert(abs(x) <= log(2));
+
+    double const x2 = x * x;
+    double power[8];
+
+    power[0] = x2 * x;
+    power[1] = x2 * power[0];
+    power[2] = x2 * power[1];
+    power[3] = x2 * power[2];
+    power[4] = x2 * power[3];
+    power[5] = x2 * power[4];
+    power[6] = x2 * power[5];
+    power[7] = x2 * power[6];
+
+    double total;
+
+    total = -power[7] * 1.99392958607210757e-14;
+    total += power[6] * 8.92169102045645256e-13;
+    total -= power[5] * 4.06476164514422553e-11;
+    total += power[4] * 1.89788699889709991e-09;
+    total -= power[3] * 9.18577307466196355e-08;
+    total += power[2] * 4.72411186696900983e-06;
+    total -= power[1] * 2.77777777777777778e-04;
+    total += power[0] * 2.77777777777777778e-02;
+
+    return total + x - x2 / 4;
+}
+
+double Li2(double x)
+{
+    double const PiPiDiv6 = 1.64493406684822644e-00;
+
+    if (x > 0.5)
+    {
+        if (x > 1) return nan(__FUNCTION__);  // Reals only!
+        if (x == 1) return PiPiDiv6;
+        return -Li2(1 - x) + PiPiDiv6 - log(x) * log1p(-x);
+    }
+    else
+    {
+        if (x == 0) return 0;
+        if (x < -1) return -Li2(1 / x) - PiPiDiv6 - log(-x) * log(-x) / 2;
+        return bernoulli(-log1p(-x));
+    }
+}
+
+double ISp(double x)
+{
+    if (x > 0) return x * x / 2 - ISp(-x) + 1.64493406684822644e-00;
+    return -bernoulli(-log1p(exp(x)));
+}
+
+//**********************************************************************************************************************
