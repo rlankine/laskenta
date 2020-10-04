@@ -25,12 +25,7 @@ SOFTWARE.
 
 #pragma once
 
-// #include <iostream>
 #include <string>
-
-//**********************************************************************************************************************
-
-#define STACK_LIMIT 10000
 
 /***********************************************************************************************************************
 *** Variable
@@ -44,6 +39,7 @@ struct Variable final
 
     Variable& operator=(double);
     explicit operator double() const noexcept;
+    double operator()() const noexcept;
 
     std::string Name() const;
     void Name(std::string const&);
@@ -72,11 +68,12 @@ struct Expression final
     Expression& operator=(Expression const&) noexcept;
 
     friend Expression abs(Expression const&);
-    friend Expression sign(Expression const&);
     friend Expression sqrt(Expression const&);
     friend Expression cbrt(Expression const&);
     friend Expression exp(Expression const&);
+    friend Expression expm1(Expression const&);
     friend Expression log(Expression const&);
+    friend Expression log1p(Expression const&);
     friend Expression sin(Expression const&);
     friend Expression cos(Expression const&);
     friend Expression tan(Expression const&);
@@ -91,8 +88,9 @@ struct Expression final
     friend Expression atanh(Expression const&);
     friend Expression erf(Expression const&);
 
-    friend Expression ISp(Expression const&);  // Integral of Softplus function
+    friend Expression sgn(Expression const&);
     friend Expression Li2(Expression const&);  // Polylog2 a.k.a. dilogarithm
+    friend Expression ISp(Expression const&);  // Integral of Softplus function
 
     friend Expression operator+(Expression const&);
     friend Expression operator-(Expression const&);
@@ -104,12 +102,12 @@ struct Expression final
 
     friend std::ostream& operator<<(std::ostream&, Expression const&);
 
+    double operator()() const noexcept;
+
     enum class Attribute
     {
-        DEFINED, NONZERO, POSITIVE, NEGATIVE, NONPOSITIVE, NONNEGATIVE,
-        UNITRANGE, ANTIUNITRANGE, OPENUNITRANGE, ANTIOPENUNITRANGE,
-        CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING,
-        BOUNDEDABOVE, BOUNDEDBELOW
+        DEFINED, NONZERO, POSITIVE, NEGATIVE, NONPOSITIVE, NONNEGATIVE, UNITRANGE, ANTIUNITRANGE, OPENUNITRANGE, ANTIOPENUNITRANGE,
+        CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING, BOUNDEDABOVE, BOUNDEDBELOW
     };
 
     Expression Derive(Variable const&) const;
@@ -151,22 +149,26 @@ inline Expression pow(Variable const& r, Variable const& s) { return pow(Express
 
 //**********************************************************************************************************************
 
-double ISp(double);  // Integral of Softplus
+inline Expression exp2(Expression const& x) { return exp(x * log(2)); }
+inline Expression log2(Expression const& x) { return log(x) / log(2); }
+inline Expression log10(Expression const& x) { return log(x) / log(10); }
+inline Expression erfc(Expression const& x) { return 1 - erf(x); }
+
+//**********************************************************************************************************************
+
+inline double sgn(double x) { return double(x > 0) - double(x < 0); }
+
 double Li2(double);  // Polylog2
+double ISp(double);  // Integral of Softplus
 
-inline double logistic(double x)
-{
-    return exp(x) / (exp(x) + 1);
-}
+//**********************************************************************************************************************
 
-inline double sign(double x)
-{
-    return double(x > 0) - double(x < 0);
-}
+template <typename T> T max(T const& x, T const& y) { return (abs(x + y) + abs(x - y)) / 2; }
+template <typename T> T min(T const& x, T const& y) { return (abs(x + y) - abs(x - y)) / 2; }
+template <typename T> T within(T const& x, T const& a, T const& b) { return (abs(x - min(a, b)) - abs(x - max(a, b)) + a + b) / 2; }
 
-inline double softplus(double x)
-{
-    return log(1 + exp(x));
-}
+template <typename T> T logistic(T const& x) { return 1 / (1 + exp(-x)); }
+template <typename T> T softplus(T const& x) { return log(1 + exp(x)); }
+template <typename T> T ReLU(T const& x) { return (x + abs(x)) / 2; }
 
 //**********************************************************************************************************************
