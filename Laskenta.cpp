@@ -909,7 +909,7 @@ struct Invert final : public FunctionNode, private ObjectGuard<Invert>
     Expr const* pow(Expr const* p) const override final { auto step0 = f_x->pow(p); auto step1 = step0->invert(); Erase(step0); return step1; }
 
     bool easyInvert() const override final { return true; }
-    bool easyNegate() const override final { if (f_x->easyNegate()) UNREACHABLE; return false; }
+    bool easyNegate() const override final { return f_x->easyNegate(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -2130,7 +2130,7 @@ Expr const* SoftPP::derivative(Variable const& r) const
 
 Expr const* Spence::derivative(Variable const& r) const
 {
-    // D(Li2(f_x)) = D(f_x) * log(1-f_x)/f_x
+    // D(Li2(f_x)) = D(f_x) * -log(1-f_x)/f_x
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->negate();
@@ -2138,14 +2138,16 @@ Expr const* Spence::derivative(Variable const& r) const
     auto step3 = f_x->invert();
     auto step4 = step2->mul(step3);
     auto step5 = step0->mul(step4);
+    auto step6 = step5->negate();
 
     Erase(step0);
     Erase(step1);
     Erase(step2);
     Erase(step3);
     Erase(step4);
+    Erase(step5);
 
-    return step5;
+    return step6;
 }
 
 Expr const* Square::derivative(Variable const& r) const
@@ -4056,7 +4058,7 @@ double bernoulli(double x)
 {
     assert(abs(x) <= log(2));
 
-    double const x2 = x * x;
+    double const x2(x * x);
     double power[8];
 
     power[0] = x2 * x;
@@ -4079,7 +4081,7 @@ double bernoulli(double x)
     total -= power[1] * 2.77777777777777778e-04;
     total += power[0] * 2.77777777777777778e-02;
 
-    return total + x - x2 / 4;
+    return total - x2 / 4 + x;
 }
 
 double Li2(double x)
