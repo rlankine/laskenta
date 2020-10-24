@@ -33,20 +33,18 @@ SOFTWARE.
 
 struct Variable final
 {
-    Variable(char const* = nullptr, double = 0);
+    Variable(double = 0);
     Variable(Variable const&) noexcept;
     ~Variable() noexcept;
 
     Variable& operator=(double);
-    explicit operator double() const noexcept;
     double operator()() const noexcept;
-
-    std::string Name() const;
-    void Name(std::string const&);
+    explicit operator double() const noexcept;
 
     struct data;
-
-    data const* id() const;
+    size_t id() const;
+    std::string Name() const;
+    void Name(std::string const&);
 
 private:
     mutable data const* pData;
@@ -89,8 +87,8 @@ struct Expression final
     friend Expression erf(Expression const&);
 
     friend Expression sgn(Expression const&);
-    friend Expression Li2(Expression const&);  // Polylog2 a.k.a. dilogarithm
-    friend Expression ISp(Expression const&);  // Integral of Softplus function
+    friend Expression Li2(Expression const&);
+    friend Expression ISp(Expression const&);
 
     friend Expression operator+(Expression const&);
     friend Expression operator-(Expression const&);
@@ -103,6 +101,7 @@ struct Expression final
     friend std::ostream& operator<<(std::ostream&, Expression const&);
 
     double operator()() const noexcept;
+    explicit operator double() const;
 
     enum class Attribute
     {

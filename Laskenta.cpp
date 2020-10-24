@@ -139,7 +139,7 @@ protected:
     virtual ~data() { }
 
     static std::unordered_map<double, Expr const*> constantNode;
-    static std::unordered_map<Variable::data const*, Expr const*> variableNode;
+    static std::unordered_map<size_t, Expr const*> variableNode;
 
     static ConstantNode const literal0;
     static ConstantNode const literal1;
@@ -173,7 +173,7 @@ Expression::data::operator Expr const* () const
 
 size_t Expression::data::dirtyLevel = 1LL;
 std::unordered_map<double, Expr const*> Expression::data::constantNode;
-std::unordered_map<Variable::data const*, Expr const*> Expression::data::variableNode;
+std::unordered_map<size_t, Expr const*> Expression::data::variableNode;
 
 /***********************************************************************************************************************
 *** FunctionNode
@@ -184,10 +184,10 @@ struct FunctionNode : public Expr
     FunctionNode(Expr const*, NodeType);
     virtual ~FunctionNode();
 
-    bool is(NodeType) const override final;
-    bool is(NodeType, Expr const*) const override final;
+    bool is(NodeType t) const override final { return t == fn; }
+    bool is(NodeType t, Expr const* p) const override final { return t == fn && p == f_x; }
 
-    void purge() const override final;
+    void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); } }
 
 protected:
     Expr const* const f_x;
@@ -211,25 +211,6 @@ FunctionNode::~FunctionNode()
 
     f_x->functionNode.erase(fn);
     Erase(f_x);
-}
-
-bool FunctionNode::is(NodeType t) const
-{
-    return t == fn;
-}
-
-bool FunctionNode::is(NodeType t, Expr const* p) const
-{
-    return t == fn && p == f_x;
-}
-
-void FunctionNode::purge() const
-{
-    if (cachedNode)
-    {
-        Expr::purge();
-        f_x->purge();
-    }
 }
 
 /***********************************************************************************************************************
@@ -2130,7 +2111,7 @@ Expr const* SoftPP::derivative(Variable const& r) const
 
 Expr const* Spence::derivative(Variable const& r) const
 {
-    // D(Li2(f_x)) = D(f_x) * log(1-f_x)/f_x
+    // D(Li2(f_x)) = D(f_x) * -log(1-f_x)/f_x
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->negate();
@@ -2138,14 +2119,16 @@ Expr const* Spence::derivative(Variable const& r) const
     auto step3 = f_x->invert();
     auto step4 = step2->mul(step3);
     auto step5 = step0->mul(step4);
+    auto step6 = step5->negate();
 
     Erase(step0);
     Erase(step1);
     Erase(step2);
     Erase(step3);
     Erase(step4);
+    Erase(step5);
 
-    return step5;
+    return step6;
 }
 
 Expr const* Square::derivative(Variable const& r) const
@@ -3943,6 +3926,11 @@ double Expression::operator()() const noexcept
     return pData->evaluate();
 }
 
+Expression::operator double() const
+{
+    return pData->evaluate();
+}
+
 Expression pow(Expression const& r, Expression const& s)
 {
     return r.pData->pow(s.pData);
@@ -3988,7 +3976,6 @@ std::ostream& operator<<(std::ostream& r, Expression const& s)
 struct Variable::data : public Shared
 {
     data(double d) : value(d), name("[&" + std::to_string(size_t(this) / sizeof(*this)) + "]") { }
-    data(double d, std::string const& r) : value(d), name(r) { }
 
     mutable double value;
     mutable std::string name;
@@ -3998,11 +3985,11 @@ struct Variable::data : public Shared
 *** Variable
 ***********************************************************************************************************************/
 
-Variable::Variable(Variable const& r) noexcept : pData(Shared::Clone(r.pData))
+Variable::Variable(double d) : pData(new data(d))
 {
 }
 
-Variable::Variable(char const* p, double d) : pData(p ? new data(d, p) : new data(d))
+Variable::Variable(Variable const& r) noexcept : pData(Shared::Clone(r.pData))
 {
 }
 
@@ -4043,9 +4030,9 @@ void Variable::Name(std::string const& s)
     pData->name = s;
 }
 
-Variable::data const* Variable::id() const
+size_t Variable::id() const
 {
-    return pData;
+    return size_t(pData);
 }
 
 /***********************************************************************************************************************
