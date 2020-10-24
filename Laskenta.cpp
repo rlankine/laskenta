@@ -890,7 +890,7 @@ struct Invert final : public FunctionNode, private ObjectGuard<Invert>
     Expr const* pow(Expr const* p) const override final { auto step0 = f_x->pow(p); auto step1 = step0->invert(); Erase(step0); return step1; }
 
     bool easyInvert() const override final { return true; }
-    bool easyNegate() const override final { if (f_x->easyNegate()) UNREACHABLE; return false; }
+    bool easyNegate() const override final { return f_x->easyNegate(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -4043,7 +4043,7 @@ double bernoulli(double x)
 {
     assert(abs(x) <= log(2));
 
-    double const x2 = x * x;
+    double const x2(x * x);
     double power[8];
 
     power[0] = x2 * x;
@@ -4066,7 +4066,7 @@ double bernoulli(double x)
     total -= power[1] * 2.77777777777777778e-04;
     total += power[0] * 2.77777777777777778e-02;
 
-    return total + x - x2 / 4;
+    return total - x2 / 4 + x;
 }
 
 double Li2(double x)
