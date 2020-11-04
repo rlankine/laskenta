@@ -85,6 +85,7 @@ struct Expression final
     friend Expression acosh(Expression const&);
     friend Expression atanh(Expression const&);
     friend Expression erf(Expression const&);
+    friend Expression erfc(Expression const&);
 
     friend Expression sgn(Expression const&);
     friend Expression Li2(Expression const&);
@@ -151,7 +152,6 @@ inline Expression pow(Variable const& r, Variable const& s) { return pow(Express
 inline Expression exp2(Expression const& x) { return exp(x * log(2)); }
 inline Expression log2(Expression const& x) { return log(x) / log(2); }
 inline Expression log10(Expression const& x) { return log(x) / log(10); }
-inline Expression erfc(Expression const& x) { return 1 - erf(x); }
 
 //**********************************************************************************************************************
 
@@ -159,15 +159,5 @@ inline double sgn(double x) { return double(x > 0) - double(x < 0); }
 
 double Li2(double);  // Polylog2
 double ISp(double);  // Integral of Softplus
-
-//**********************************************************************************************************************
-
-template <typename T> T max(T const& x, T const& y) { return (abs(x + y) + abs(x - y)) / 2; }
-template <typename T> T min(T const& x, T const& y) { return (abs(x + y) - abs(x - y)) / 2; }
-template <typename T> T within(T const& x, T const& a, T const& b) { return (abs(x - min(a, b)) - abs(x - max(a, b)) + a + b) / 2; }
-
-template <typename T> T logistic(T const& x) { return 1 / (1 + exp(-x)); }
-template <typename T> T softplus(T const& x) { return log(1 + exp(x)); }
-template <typename T> T ReLU(T const& x) { return (x + abs(x)) / 2; }
 
 //**********************************************************************************************************************
