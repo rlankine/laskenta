@@ -25,12 +25,7 @@ SOFTWARE.
 
 #pragma once
 
-// #include <iostream>
 #include <string>
-
-//**********************************************************************************************************************
-
-#define STACK_LIMIT 10000
 
 /***********************************************************************************************************************
 *** Variable
@@ -38,19 +33,18 @@ SOFTWARE.
 
 struct Variable final
 {
-    Variable(char const* = nullptr, double = 0);
+    Variable(double = 0);
     Variable(Variable const&) noexcept;
     ~Variable() noexcept;
 
     Variable& operator=(double);
+    double operator()() const noexcept;
     explicit operator double() const noexcept;
 
+    struct data;
+    size_t id() const;
     std::string Name() const;
     void Name(std::string const&);
-
-    struct data;
-
-    data const* id() const;
 
 private:
     mutable data const* pData;
@@ -72,11 +66,12 @@ struct Expression final
     Expression& operator=(Expression const&) noexcept;
 
     friend Expression abs(Expression const&);
-    friend Expression sign(Expression const&);
     friend Expression sqrt(Expression const&);
     friend Expression cbrt(Expression const&);
     friend Expression exp(Expression const&);
+    friend Expression expm1(Expression const&);
     friend Expression log(Expression const&);
+    friend Expression log1p(Expression const&);
     friend Expression sin(Expression const&);
     friend Expression cos(Expression const&);
     friend Expression tan(Expression const&);
@@ -90,9 +85,11 @@ struct Expression final
     friend Expression acosh(Expression const&);
     friend Expression atanh(Expression const&);
     friend Expression erf(Expression const&);
+    friend Expression erfc(Expression const&);
 
-    friend Expression ISp(Expression const&);  // Integral of Softplus function
-    friend Expression Li2(Expression const&);  // Polylog2 a.k.a. dilogarithm
+    friend Expression sgn(Expression const&);
+    friend Expression Li2(Expression const&);
+    friend Expression ISp(Expression const&);
 
     friend Expression operator+(Expression const&);
     friend Expression operator-(Expression const&);
@@ -104,12 +101,13 @@ struct Expression final
 
     friend std::ostream& operator<<(std::ostream&, Expression const&);
 
+    double operator()() const noexcept;
+    explicit operator double() const;
+
     enum class Attribute
     {
-        DEFINED, NONZERO, POSITIVE, NEGATIVE, NONPOSITIVE, NONNEGATIVE,
-        UNITRANGE, ANTIUNITRANGE, OPENUNITRANGE, ANTIOPENUNITRANGE,
-        CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING,
-        BOUNDEDABOVE, BOUNDEDBELOW
+        DEFINED, NONZERO, POSITIVE, NEGATIVE, NONPOSITIVE, NONNEGATIVE, UNITRANGE, ANTIUNITRANGE, OPENUNITRANGE, ANTIOPENUNITRANGE,
+        CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING, BOUNDEDABOVE, BOUNDEDBELOW
     };
 
     Expression Derive(Variable const&) const;
@@ -151,22 +149,15 @@ inline Expression pow(Variable const& r, Variable const& s) { return pow(Express
 
 //**********************************************************************************************************************
 
-double ISp(double);  // Integral of Softplus
+inline Expression exp2(Expression const& x) { return exp(x * log(2)); }
+inline Expression log2(Expression const& x) { return log(x) / log(2); }
+inline Expression log10(Expression const& x) { return log(x) / log(10); }
+
+//**********************************************************************************************************************
+
+inline double sgn(double x) { return double(x > 0) - double(x < 0); }
+
 double Li2(double);  // Polylog2
-
-inline double logistic(double x)
-{
-    return exp(x) / (exp(x) + 1);
-}
-
-inline double sign(double x)
-{
-    return double(x > 0) - double(x < 0);
-}
-
-inline double softplus(double x)
-{
-    return log(1 + exp(x));
-}
+double ISp(double);  // Integral of Softplus
 
 //**********************************************************************************************************************

@@ -27,20 +27,17 @@ SOFTWARE.
 // #define VERBOSE
 #include "Tools.h"
 
-#include <algorithm>
-#include <cmath>
 #include <map>
 #include <unordered_map>
 
-using std::cout;
-using std::endl;
-
 //**********************************************************************************************************************
+
+auto const STACK_LIMIT = 10000;
+
+struct ConstantNode;
 
 using Attr = Expression::Attribute;
 using Expr = Expression::data;
-
-struct ConstantNode;
 
 /***********************************************************************************************************************
 *** Expression::data
@@ -56,11 +53,12 @@ struct Expression::data : public Shared
     // Functions
 
     virtual Expr const* abs() const;
-    virtual Expr const* sign() const;
     virtual Expr const* sqrt() const { return function(NodeType::SQRT); }
     virtual Expr const* cbrt() const { return function(NodeType::CBRT); }
     virtual Expr const* exp() const { return function(NodeType::EXP); }
+    virtual Expr const* expm1() const { return function(NodeType::EXPM1); }
     virtual Expr const* log() const { return function(NodeType::LOG); }
+    virtual Expr const* log1p() const { return function(NodeType::LOG1P); }
     virtual Expr const* sin() const { return function(NodeType::SIN); }
     virtual Expr const* cos() const { return function(NodeType::COS); }
     virtual Expr const* tan() const { return function(NodeType::TAN); }
@@ -74,9 +72,14 @@ struct Expression::data : public Shared
     virtual Expr const* acosh() const { return function(NodeType::ACOSH); }
     virtual Expr const* atanh() const { return function(NodeType::ATANH); }
     virtual Expr const* erf() const { return function(NodeType::ERF); }
+    virtual Expr const* erfc() const { return function(NodeType::ERFC); }
+
+    virtual Expr const* boolean() const { return function(NodeType::BOOLEAN); }
     virtual Expr const* invert() const { return function(NodeType::INVERT); }
     virtual Expr const* negate() const { return function(NodeType::NEGATE); }
-    virtual Expr const* secant() const { return function(NodeType::SECANT); }
+    virtual Expr const* sec() const { return function(NodeType::SEC); }
+    virtual Expr const* sech() const { return function(NodeType::SECH); }
+    virtual Expr const* signum() const;
     virtual Expr const* softpp() const { return function(NodeType::SOFTPP); }
     virtual Expr const* spence() const { return function(NodeType::SPENCE); }
     virtual Expr const* square() const { return function(NodeType::SQUARE); }
@@ -99,12 +102,12 @@ struct Expression::data : public Shared
 
     // Analysis tools
 
-    virtual bool guaranteed(Attr) const = 0; // { return false; }
+    virtual bool guaranteed(Attr) const = 0;
 
     enum class NodeType
     {
-        ABS, SIGN, SQRT, CBRT, EXP, LOG, SIN, COS, TAN, ASIN, ACOS, ATAN, SINH, COSH, TANH, ASINH, ACOSH, ATANH, ERF,
-        INVERT, NEGATE, SECANT, SOFTPP, SPENCE, SQUARE, XCONIC, YCONIC, ZCONIC, CONSTANT, VARIABLE, ADD, MUL, POW
+        ABS, SQRT, CBRT, EXP, EXPM1, LOG, LOG1P, SIN, COS, TAN, ASIN, ACOS, ATAN, SINH, COSH, TANH, ASINH, ACOSH, ATANH, ERF, ERFC,
+        BOOLEAN, INVERT, NEGATE, SEC, SECH, SIGNUM, SOFTPP, SPENCE, SQUARE, XCONIC, YCONIC, ZCONIC, CONSTANT, VARIABLE, ADD, MUL, POW
     };
 
     virtual bool is(NodeType) const = 0;
@@ -120,7 +123,7 @@ struct Expression::data : public Shared
     mutable std::map<Expr const*, Expr const*> mulNode;
     mutable std::map<Expr const*, Expr const*> powNode;
 
-    // Miscellaneous
+    // Lazy evaluation, etc.
 
     int32_t const depth;
     static size_t dirtyLevel;
@@ -136,7 +139,7 @@ protected:
     virtual ~data() { }
 
     static std::unordered_map<double, Expr const*> constantNode;
-    static std::unordered_map<Variable::data const*, Expr const*> variableNode;
+    static std::unordered_map<size_t, Expr const*> variableNode;
 
     static ConstantNode const literal0;
     static ConstantNode const literal1;
@@ -145,7 +148,6 @@ protected:
     static ConstantNode const literal2Inv;
     static ConstantNode const literal3Inv;
     static ConstantNode const literal1Neg;
-    static ConstantNode const erfDiffConst;
 
 private:
     mutable size_t cleanLevel;
@@ -161,7 +163,7 @@ private:
 
 //----------------------------------------------------------------------------------------------------------------------
 
-Expression::data::operator Expr const* () const
+inline Expression::data::operator Expr const* () const
 {
     return this;
 }
@@ -170,7 +172,7 @@ Expression::data::operator Expr const* () const
 
 size_t Expression::data::dirtyLevel = 1LL;
 std::unordered_map<double, Expr const*> Expression::data::constantNode;
-std::unordered_map<Variable::data const*, Expr const*> Expression::data::variableNode;
+std::unordered_map<size_t, Expr const*> Expression::data::variableNode;
 
 /***********************************************************************************************************************
 *** FunctionNode
@@ -178,13 +180,23 @@ std::unordered_map<Variable::data const*, Expr const*> Expression::data::variabl
 
 struct FunctionNode : public Expr
 {
-    FunctionNode(Expr const*, NodeType);
-    virtual ~FunctionNode();
+    FunctionNode(Expr const* p, NodeType n) : Expr(p->depth + 1), f_x(p), fn(n)
+    {
+        assert(f_x->functionNode.find(fn) == f_x->functionNode.end());
+        f_x->functionNode[fn] = this;
+    }
 
-    bool is(NodeType) const override final;
-    bool is(NodeType, Expr const*) const override final;
+    virtual ~FunctionNode()
+    {
+        assert(f_x->functionNode.find(fn) != f_x->functionNode.end() && f_x->functionNode[fn] == this);
+        f_x->functionNode.erase(fn);
+        Erase(f_x);
+    }
 
-    void purge() const override final;
+    bool is(NodeType t) const override final { return t == fn; }
+    bool is(NodeType t, Expr const* p) const override final { return t == fn && p == f_x; }
+
+    void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); } }
 
 protected:
     Expr const* const f_x;
@@ -193,42 +205,6 @@ private:
     NodeType const fn;
 };
 
-//----------------------------------------------------------------------------------------------------------------------
-
-FunctionNode::FunctionNode(Expr const* p, NodeType n) : Expr(p->depth + 1), f_x(p), fn(n)
-{
-    assert(f_x->functionNode.find(fn) == f_x->functionNode.end());
-
-    f_x->functionNode[fn] = this;
-}
-
-FunctionNode::~FunctionNode()
-{
-    assert(f_x->functionNode.find(fn) != f_x->functionNode.end() && f_x->functionNode[fn] == this);
-
-    f_x->functionNode.erase(fn);
-    Erase(f_x);
-}
-
-bool FunctionNode::is(NodeType t) const
-{
-    return t == fn;
-}
-
-bool FunctionNode::is(NodeType t, Expr const* p) const
-{
-    return t == fn && p == f_x;
-}
-
-void FunctionNode::purge() const
-{
-    if (cachedNode)
-    {
-        Expr::purge();
-        f_x->purge();
-    }
-}
-
 /***********************************************************************************************************************
 *** OperatorNode
 ***********************************************************************************************************************/
@@ -236,52 +212,68 @@ void FunctionNode::purge() const
 struct OperatorNode : public Expr
 {
     OperatorNode(Expr const* p, Expr const* q) : Expr(std::max(p->depth, q->depth) + 1), f_x(p), g_x(q) { }
-    virtual ~OperatorNode();
 
-    bool is(NodeType, Expr const*) const override final;
+    virtual ~OperatorNode()
+    {
+        Erase(f_x);
+        Erase(g_x);
+    }
 
-    void purge() const override final;
+    bool is(NodeType, Expr const*) const override final { return false; }
+
+    void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); g_x->purge(); } }
 
 protected:
     Expr const* const f_x;
     Expr const* const g_x;
 };
 
-//----------------------------------------------------------------------------------------------------------------------
-
-OperatorNode::~OperatorNode()
-{
-    Erase(f_x);
-    Erase(g_x);
-}
-
-bool OperatorNode::is(NodeType t, Expr const* p) const
-{
-    return false;
-}
-
-void OperatorNode::purge() const
-{
-    if (cachedNode)
-    {
-        Expr::purge();
-        f_x->purge();
-        g_x->purge();
-    }
-}
-
 /***********************************************************************************************************************
-*** NullExpression
+*** Nan
 ***********************************************************************************************************************/
 
-struct NullExpression final : public Expr
+struct Nan final : public Expr
 {
-    static NullExpression const instance;
+    static Nan const instance;
 
-    // Empty expression starts in 'quantum state' -- It behaves like '0' if added anything or '1' if multiplied by anything:
+    Expr const* abs() const override final { return Clone(this); }
+    Expr const* sqrt() const override final { return Clone(this); }
+    Expr const* cbrt() const override final { return Clone(this); }
+    Expr const* exp() const override final { return Clone(this); }
+    Expr const* log() const override final { return Clone(this); }
+    Expr const* sin() const override final { return Clone(this); }
+    Expr const* cos() const override final { return Clone(this); }
+    Expr const* tan() const override final { return Clone(this); }
+    Expr const* asin() const override final { return Clone(this); }
+    Expr const* acos() const override final { return Clone(this); }
+    Expr const* atan() const override final { return Clone(this); }
+    Expr const* sinh() const override final { return Clone(this); }
+    Expr const* cosh() const override final { return Clone(this); }
+    Expr const* tanh() const override final { return Clone(this); }
+    Expr const* asinh() const override final { return Clone(this); }
+    Expr const* acosh() const override final { return Clone(this); }
+    Expr const* atanh() const override final { return Clone(this); }
+    Expr const* erf() const override final { return Clone(this); }
+    Expr const* erfc() const override final { return Clone(this); }
 
-    Expr const* add(Expr const* p) const override final { return Clone(p); }
-    Expr const* mul(Expr const* p) const override final { return Clone(p); }
+    Expr const* boolean() const override final { return Clone(this); }
+    Expr const* invert() const override final { return Clone(this); }
+    Expr const* negate() const override final { return Clone(this); }
+    Expr const* sec() const override final { return Clone(this); }
+    Expr const* sech() const override final { return Clone(this); }
+    Expr const* signum() const override final { return Clone(this); }
+    Expr const* softpp() const override final { return Clone(this); }
+    Expr const* spence() const override final { return Clone(this); }
+    Expr const* square() const override final { return Clone(this); }
+    Expr const* xconic() const override final { return Clone(this); }
+    Expr const* yconic() const override final { return Clone(this); }
+    Expr const* zconic() const override final { return Clone(this); }
+
+    Expr const* add(Expr const*) const override final { return Clone(this); }
+    Expr const* commutative_add(Expr const*) const override final { return Clone(this); }
+    Expr const* mul(Expr const*) const override final { return Clone(this); }
+    Expr const* commutative_mul(Expr const*) const override final { return Clone(this); }
+    Expr const* pow(Expr const*) const override final { return Clone(this); }
 
     bool guaranteed(Attr) const override final { return false; }
 
@@ -289,17 +281,17 @@ struct NullExpression final : public Expr
     bool is(NodeType, Expr const*) const override final { return false; }
 
     Expr const* derivative(Variable const&) const override final { return Clone(this); }
-    double value() const override final { FAIL("Attempt was made to evaluate uninitialized Expression object"); }
+    double value() const override final { return nan(__FUNCTION__); }
 
-    void print(std::ostream& out) const override final {}
+    void print(std::ostream& out) const override final { out << "nan"; }
 
 private:
-    NullExpression() : Expr(0) { }
+    Nan() : Expr(0) { }
 };
 
 //----------------------------------------------------------------------------------------------------------------------
 
-NullExpression const NullExpression::instance;
+Nan const Nan::instance;
 
 /***********************************************************************************************************************
 *** ConstantNode
@@ -307,11 +299,19 @@ NullExpression const NullExpression::instance;
 
 struct ConstantNode final : public Expr, private ObjectGuard<ConstantNode>
 {
-    explicit ConstantNode(double);
-    virtual ~ConstantNode();
+    explicit ConstantNode(double d) : Expr(0), n(d)
+    {
+        assert(constantNode.find(n) == constantNode.end());
+        constantNode[n] = this;
+    }
+
+    virtual ~ConstantNode()
+    {
+        assert(constantNode.find(n) != constantNode.end() && constantNode[n] == this);
+        constantNode.erase(n);
+    }
 
     Expr const* abs() const override final { return constant(std::abs(n)); }
-    Expr const* sign() const override final { return constant(::sign(n)); }
     Expr const* sqrt() const override final { return constant(std::sqrt(n)); }
     Expr const* cbrt() const override final { return constant(std::cbrt(n)); }
     Expr const* exp() const override final { return constant(std::exp(n)); }
@@ -329,14 +329,19 @@ struct ConstantNode final : public Expr, private ObjectGuard<ConstantNode>
     Expr const* acosh() const override final { return constant(std::acosh(n)); }
     Expr const* atanh() const override final { return constant(std::atanh(n)); }
     Expr const* erf() const override final { return constant(std::erf(n)); }
+    Expr const* erfc() const override final { return constant(std::erfc(n)); }
+
+    Expr const* boolean() const override final { return constant(n != 0); }
     Expr const* invert() const override final { return constant(1 / n); }
     Expr const* negate() const override final { return constant(-n); }
-    Expr const* secant() const override final { return constant(1 / std::cos(n)); }
+    Expr const* sec() const override final { return constant(1 / std::cos(n)); }
+    Expr const* sech() const override final { return constant(1 / std::cosh(n)); }
+    Expr const* signum() const override final { return constant(double(n > 0) - (n < 0)); }
     Expr const* softpp() const override final { return constant(::ISp(n)); }
     Expr const* spence() const override final { return constant(::Li2(n)); }
     Expr const* square() const override final { return constant(n * n); }
     Expr const* xconic() const override final { return constant(std::sqrt(n * n - 1)); }
-    Expr const* yconic() const override final { return constant(std::sqrt(1 + n * n)); }
+    Expr const* yconic() const override final { return constant(std::sqrt(n * n + 1)); }
     Expr const* zconic() const override final { return constant(std::sqrt(1 - n * n)); }
 
     Expr const* add(Expr const*) const override final;
@@ -371,29 +376,15 @@ ConstantNode const Expression::data::literal3(3);
 ConstantNode const Expression::data::literal2Inv(1.0 / 2);
 ConstantNode const Expression::data::literal3Inv(1.0 / 3);
 ConstantNode const Expression::data::literal1Neg(-1);
-ConstantNode const Expression::data::erfDiffConst(1.0 / std::sqrt(std::atan(1)));
 
 //----------------------------------------------------------------------------------------------------------------------
 
-ConstantNode::ConstantNode(double d) : Expr(0), n(d)
-{
-    assert(constantNode.find(n) == constantNode.end());
-
-    constantNode[n] = this;
-}
-
-ConstantNode::~ConstantNode()
-{
-    assert(constantNode.find(n) != constantNode.end() && constantNode[n] == this);
-
-    constantNode.erase(n);
-}
-
 Expr const* Expression::data::constant(double d)
 {
-    auto node = constantNode.find(d);
+    if (isnan(d)) return Clone(Nan::instance);
 
-    return node == constantNode.end() ? new ConstantNode(d) : Clone(node->second);
+    auto node = constantNode.find(d);
+    return node != constantNode.end() ? Clone(node->second) : new ConstantNode(d);
 }
 
 /***********************************************************************************************************************
@@ -402,8 +393,17 @@ Expr const* Expression::data::constant(double d)
 
 struct VariableNode final : public Expr, private ObjectGuard<VariableNode>
 {
-    explicit VariableNode(Variable const&);
-    virtual ~VariableNode();
+    explicit VariableNode(Variable const& r) : Expr(1), x(r)
+    {
+        assert(variableNode.find(x.id()) == variableNode.end());
+        variableNode[x.id()] = this;
+    }
+
+    virtual ~VariableNode()
+    {
+        assert(variableNode.find(x.id()) != variableNode.end() && variableNode[x.id()] == this);
+        variableNode.erase(x.id());
+    }
 
     bool guaranteed(Attr) const override final;
 
@@ -421,25 +421,10 @@ private:
 
 //----------------------------------------------------------------------------------------------------------------------
 
-VariableNode::VariableNode(Variable const& r) : Expr(1), x(r)
-{
-    assert(variableNode.find(x.id()) == variableNode.end());
-
-    variableNode[x.id()] = this;
-}
-
-VariableNode::~VariableNode()
-{
-    assert(variableNode.find(x.id()) != variableNode.end() && variableNode[x.id()] == this);
-
-    variableNode.erase(x.id());
-}
-
 Expr const* Expression::data::variable(Variable const& r)
 {
     auto node = variableNode.find(r.id());
-
-    return node == variableNode.end() ? new VariableNode(r) : Clone(node->second);
+    return node != variableNode.end() ? Clone(node->second) : new VariableNode(r);
 }
 
 /***********************************************************************************************************************
@@ -451,9 +436,9 @@ struct Abs final : public FunctionNode, private ObjectGuard<Abs>
     Abs(Expr const* p) : FunctionNode(p, NodeType::ABS) { }
 
     Expr const* abs() const override final { return Clone(this); }
-    Expr const* sign() const override final;
     Expr const* cos() const override final { return f_x->cos(); }
     Expr const* cosh() const override final { return f_x->cosh(); }
+    Expr const* signum() const override final { return f_x->boolean(); }
     Expr const* square() const override final { return f_x->square(); }
     Expr const* yconic() const override final { return f_x->yconic(); }
     Expr const* zconic() const override final { return f_x->zconic(); }
@@ -462,26 +447,6 @@ struct Abs final : public FunctionNode, private ObjectGuard<Abs>
 
     Expr const* derivative(Variable const&) const override final;
     double value() const override final { return std::abs(f_x->evaluate()); }
-
-    void print(std::ostream&) const override final;
-};
-
-/***********************************************************************************************************************
-*** Sign
-***********************************************************************************************************************/
-
-struct Sign final : public FunctionNode, private ObjectGuard<Sign>
-{
-    Sign(Expr const* p) : FunctionNode(p, NodeType::SIGN) { }
-
-    Expr const* sign() const override final { return Clone(this); }
-    Expr const* sqrt() const override final;
-    Expr const* cbrt() const override final { return Clone(this); }
-
-    bool guaranteed(Attr) const override final;
-
-    Expr const* derivative(Variable const&) const override final;
-    double value() const override final { return ::sign(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -515,7 +480,7 @@ struct Cbrt final : public FunctionNode, private ObjectGuard<Cbrt>
 {
     Cbrt(Expr const* p) : FunctionNode(p, NodeType::CBRT) { }
 
-    Expr const* sign() const override final { return f_x->sign(); }
+    Expr const* signum() const override final { return f_x->signum(); }
     Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal3Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
@@ -535,14 +500,30 @@ struct Exp final : public FunctionNode, private ObjectGuard<Exp>
     Exp(Expr const* p) : FunctionNode(p, NodeType::EXP) { }
 
     Expr const* abs() const override final { return Clone(this); }
-    Expr const* sign() const override final { return Clone(literal1); }
     Expr const* log() const override final { return Clone(f_x); }
+    Expr const* signum() const override final { return Clone(literal1); }
     Expr const* pow(Expr const* p) const override final { auto step0 = f_x->mul(p); auto step1 = step0->exp();  Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
     double value() const override final { return std::exp(f_x->evaluate()); }
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** Exp
+***********************************************************************************************************************/
+
+struct ExpM1 final : public FunctionNode, private ObjectGuard<ExpM1>
+{
+    ExpM1(Expr const* p) : FunctionNode(p, NodeType::EXPM1) { }
+
+    bool guaranteed(Attr) const override final;
+
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::expm1(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -560,10 +541,23 @@ struct Log final : public FunctionNode, private ObjectGuard<Log>
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
-    double value() const override final
-    {
-        return std::log(f_x->evaluate());
-    }
+    double value() const override final { return std::log(f_x->evaluate()); }
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** Log1P
+***********************************************************************************************************************/
+
+struct Log1P final : public FunctionNode, private ObjectGuard<Log1P>
+{
+    Log1P(Expr const* p) : FunctionNode(p, NodeType::LOG1P) { }
+
+    bool guaranteed(Attr) const override final;
+
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::log1p(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -594,7 +588,7 @@ struct Cos final : public FunctionNode, private ObjectGuard<Cos>
 {
     Cos(Expr const* p) : FunctionNode(p, NodeType::COS) { }
 
-    Expr const* invert() const { return f_x->secant(); }
+    Expr const* invert() const { return f_x->sec(); }
     Expr const* zconic() const override final { auto step0 = f_x->sin(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
@@ -629,10 +623,10 @@ struct ASin final : public FunctionNode, private ObjectGuard<ASin>
 {
     ASin(Expr const* p) : FunctionNode(p, NodeType::ASIN) { }
 
-    Expr const* sign() const override final;
     Expr const* sin() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? Clone(f_x) : Expr::sin(); }
     Expr const* cos() const override final { return f_x->zconic(); }
-    Expr const* secant() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* sec() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* signum() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? f_x->signum() : Expr::signum(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -653,7 +647,7 @@ struct ACos final : public FunctionNode, private ObjectGuard<ACos>
     Expr const* abs() const override final { return Clone(this); }
     Expr const* sin() const override final { return f_x->zconic(); }
     Expr const* cos() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? Clone(f_x) : Expr::cos(); }
-    Expr const* secant() const override final { return f_x->invert(); }
+    Expr const* sec() const override final { return f_x->invert(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -671,10 +665,10 @@ struct ATan final : public FunctionNode, private ObjectGuard<ATan>
 {
     ATan(Expr const* p) : FunctionNode(p, NodeType::ATAN) { }
 
-    Expr const* sign() const override final { return f_x->sign(); }
     Expr const* cos() const override final { auto step0 = f_x->yconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* tan() const override final { return Clone(f_x); }
-    Expr const* secant() const override final { return f_x->yconic(); }
+    Expr const* sec() const override final { return f_x->yconic(); }
+    Expr const* signum() const override final { return f_x->signum(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -692,8 +686,8 @@ struct SinH final : public FunctionNode, private ObjectGuard<SinH>
 {
     SinH(Expr const* p) : FunctionNode(p, NodeType::SINH) { }
 
-    Expr const* sign() const override final { return f_x->sign(); }
     Expr const* asinh() const override final { return Clone(f_x); }
+    Expr const* signum() const override final { return f_x->signum(); }
     Expr const* yconic() const override final { return f_x->cosh(); }
 
     bool guaranteed(Attr) const override final;
@@ -713,8 +707,8 @@ struct CosH final : public FunctionNode, private ObjectGuard<CosH>
     CosH(Expr const* p) : FunctionNode(p, NodeType::COSH) { }
 
     Expr const* abs() const override final { return Clone(this); }
-    Expr const* sign() const override final { return Clone(literal1); }
     Expr const* acosh() const override final { return f_x->abs(); }
+    Expr const* signum() const override final { return Clone(literal1); }
     Expr const* xconic() const override final { auto step0 = f_x->sinh(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
@@ -733,8 +727,8 @@ struct TanH final : public FunctionNode, private ObjectGuard<TanH>
 {
     TanH(Expr const* p) : FunctionNode(p, NodeType::TANH) { ; }
 
-    Expr const* sign() const override final { return f_x->sign(); }
     Expr const* atanh() const override final { return Clone(f_x); }
+    Expr const* signum() const override final { return f_x->signum(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -752,10 +746,10 @@ struct ASinH final : public FunctionNode, private ObjectGuard<ASinH>
 {
     ASinH(Expr const* p) : FunctionNode(p, NodeType::ASINH) { }
 
-    Expr const* sign() const override final { return f_x->sign(); }
     Expr const* exp() const override final { auto step0 = f_x->yconic(); auto step1 = f_x->add(step0); Erase(step0); return step1; }
     Expr const* sinh() const override final { return Clone(f_x); }
     Expr const* cosh() const override final { return f_x->yconic(); }
+    Expr const* signum() const override final { return f_x->signum(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -793,9 +787,9 @@ struct ATanH final : public FunctionNode, private ObjectGuard<ATanH>
 {
     ATanH(Expr const* p) : FunctionNode(p, NodeType::ATANH) { }
 
-    Expr const* sign() const override final;
     Expr const* cosh() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* tanh() const override final { return f_x->guaranteed(Attr::OPENUNITRANGE) ? Clone(f_x) : Expr::tanh(); }
+    Expr const* signum() const override final { return f_x->guaranteed(Attr::OPENUNITRANGE) ? f_x->signum() : Expr::signum(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -813,12 +807,46 @@ struct Erf final : public FunctionNode, private ObjectGuard<Erf>
 {
     Erf(Expr const* p) : FunctionNode(p, NodeType::ERF) { }
 
-    Expr const* sign() const override final { return f_x->sign(); }
+    Expr const* signum() const override final { return f_x->signum(); }
 
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
     double value() const override final { return std::erf(f_x->evaluate()); }
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** ErfC
+***********************************************************************************************************************/
+
+struct ErfC final : public FunctionNode, private ObjectGuard<ErfC>
+{
+    ErfC(Expr const* p) : FunctionNode(p, NodeType::ERF) { }
+
+    Expr const* signum() const override final { return f_x->signum(); }
+
+    bool guaranteed(Attr) const override final;
+
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return std::erfc(f_x->evaluate()); }
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** Boolean
+***********************************************************************************************************************/
+
+struct Boolean final : public FunctionNode, private ObjectGuard<Boolean>
+{
+    Boolean(Expr const* p) : FunctionNode(p, NodeType::BOOLEAN) { }
+
+    bool guaranteed(Attr) const override final;
+
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return f_x->evaluate() != 0; }
 
     void print(std::ostream&) const override final;
 };
@@ -832,18 +860,18 @@ struct Invert final : public FunctionNode, private ObjectGuard<Invert>
     Invert(Expr const* p) : FunctionNode(p, NodeType::INVERT) { }
 
     Expr const* abs() const override final { auto step0 = f_x->abs(); auto step1 = step0->invert(); Erase(step0); return step1; }
-    Expr const* sign() const override final { auto step0 = f_x->sign(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* sqrt() const override final { auto step0 = f_x->sqrt(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* cbrt() const override final { auto step0 = f_x->cbrt(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* log() const override final { auto step0 = f_x->log(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* invert() const override final { return f_x->guaranteed(Attr::NONZERO) ? Clone(f_x) : Expr::invert(); }
+    Expr const* signum() const override final { auto step0 = f_x->signum(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* square() const override final { auto step0 = f_x->square(); auto step1 = step0->invert(); Erase(step0); return step1; }
 
     Expr const* mul(Expr const*) const override final;
     Expr const* pow(Expr const* p) const override final { auto step0 = f_x->pow(p); auto step1 = step0->invert(); Erase(step0); return step1; }
 
     bool easyInvert() const override final { return true; }
-    bool easyNegate() const override final { if (f_x->easyNegate()) UNREACHABLE; return false; }
+    bool easyNegate() const override final { return f_x->easyNegate(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -862,7 +890,6 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
     Negate(Expr const* p) : FunctionNode(p, NodeType::NEGATE) { }
 
     Expr const* abs() const override final { return f_x->abs(); }
-    Expr const* sign() const override final { auto step0 = f_x->sign(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* cbrt() const override final { auto step0 = f_x->cbrt(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* exp() const override final { auto step0 = f_x->exp(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* sin() const override final { auto step0 = f_x->sin(); auto step1 = step0->negate(); Erase(step0); return step1; }
@@ -878,7 +905,8 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
     Expr const* erf() const override final { auto step0 = f_x->erf(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* invert() const override final { auto step0 = f_x->invert(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* negate() const override final { return Clone(f_x); }
-    Expr const* secant() const override final { return f_x->secant(); }
+    Expr const* sec() const override final { return f_x->sec(); }
+    Expr const* signum() const override final { auto step0 = f_x->signum(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* square() const override final { return f_x->square(); }
     Expr const* xconic() const override final { return f_x->xconic(); }
     Expr const* yconic() const override final { return f_x->yconic(); }
@@ -899,12 +927,12 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
 };
 
 /***********************************************************************************************************************
-*** Secant
+*** Sec
 ***********************************************************************************************************************/
 
-struct Secant final : public FunctionNode, private ObjectGuard<Secant>
+struct Sec final : public FunctionNode, private ObjectGuard<Sec>
 {
-    Secant(Expr const* p) : FunctionNode(p, NodeType::SECANT) { }
+    Sec(Expr const* p) : FunctionNode(p, NodeType::SEC) { }
 
     Expr const* invert() const { return f_x->cos(); }
 
@@ -912,6 +940,45 @@ struct Secant final : public FunctionNode, private ObjectGuard<Secant>
 
     Expr const* derivative(Variable const&) const override final;
     double value() const override final { return 1 / std::cos(f_x->evaluate()); }
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** SecH
+***********************************************************************************************************************/
+
+struct SecH final : public FunctionNode, private ObjectGuard<SecH>
+{
+    SecH(Expr const* p) : FunctionNode(p, NodeType::SECH) { }
+
+    Expr const* invert() const { return f_x->cosh(); }
+
+    bool guaranteed(Attr) const override final;
+
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { return 1 / std::cosh(f_x->evaluate()); }
+
+    void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** Signum
+***********************************************************************************************************************/
+
+struct Signum final : public FunctionNode, private ObjectGuard<Signum>
+{
+    Signum(Expr const* p) : FunctionNode(p, NodeType::SIGNUM) { }
+
+    Expr const* abs() const override final { return f_x->boolean(); }
+    Expr const* sqrt() const override final { return f_x->guaranteed(Attr::NONNEGATIVE) ? Clone(this) : Expr::sqrt(); }
+    Expr const* cbrt() const override final { return Clone(this); }
+    Expr const* signum() const override final { return Clone(this); }
+
+    bool guaranteed(Attr) const override final;
+
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final { auto x = f_x->evaluate(); return double(x > 0) - (x < 0); }
 
     void print(std::ostream&) const override final;
 };
@@ -966,7 +1033,7 @@ struct Square final : public FunctionNode, private ObjectGuard<Square>
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
-    double value() const override final;
+    double value() const override final { auto x = f_x->evaluate(); return x * x; }
 
     void print(std::ostream&) const override final;
 };
@@ -986,7 +1053,7 @@ struct XConic final : public FunctionNode, private ObjectGuard<XConic>
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
-    double value() const override final;
+    double value() const override final { auto x = f_x->evaluate(); return std::sqrt(x * x - 1); }
 
     void print(std::ostream&) const override final;
 };
@@ -1006,7 +1073,7 @@ struct YConic final : public FunctionNode, private ObjectGuard<YConic>
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
-    double value() const override final;
+    double value() const override final { auto x = f_x->evaluate(); return std::sqrt(x * x + 1); }
 
     void print(std::ostream&) const override final;
 };
@@ -1027,7 +1094,7 @@ struct ZConic final : public FunctionNode, private ObjectGuard<ZConic>
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
-    double value() const override final;
+    double value() const override final { auto x = f_x->evaluate(); return std::sqrt(1 - x * x); }
 
     void print(std::ostream&) const override final;
 };
@@ -1038,15 +1105,13 @@ struct ZConic final : public FunctionNode, private ObjectGuard<ZConic>
 
 Expr const* Expression::data::function(NodeType n) const
 {
-    if (functionNode.find(n) != functionNode.end()) { return Clone(functionNode[n]); }
+    auto node = functionNode.find(n);
+    if (node != functionNode.end()) { return Clone(node->second); }
 
     switch (n)
     {
     case NodeType::ABS:
         return new Abs(Clone(this));
-
-    case NodeType::SIGN:
-        return new Sign(Clone(this));
 
     case NodeType::SQRT:
         return new Sqrt(Clone(this));
@@ -1057,8 +1122,14 @@ Expr const* Expression::data::function(NodeType n) const
     case NodeType::EXP:
         return new Exp(Clone(this));
 
+    case NodeType::EXPM1:
+        return new ExpM1(Clone(this));
+
     case NodeType::LOG:
         return new Log(Clone(this));
+
+    case NodeType::LOG1P:
+        return new Log1P(Clone(this));
 
     case NodeType::SIN:
         return new Sin(Clone(this));
@@ -1099,14 +1170,26 @@ Expr const* Expression::data::function(NodeType n) const
     case NodeType::ERF:
         return new Erf(Clone(this));
 
+    case NodeType::ERFC:
+        return new ErfC(Clone(this));
+
+    case NodeType::BOOLEAN:
+        return new Boolean(Clone(this));
+
     case NodeType::INVERT:
         return new Invert(Clone(this));
 
     case NodeType::NEGATE:
         return new Negate(Clone(this));
 
-    case NodeType::SECANT:
-        return new Secant(Clone(this));
+    case NodeType::SEC:
+        return new Sec(Clone(this));
+
+    case NodeType::SECH:
+        return new SecH(Clone(this));
+
+    case NodeType::SIGNUM:
+        return new Signum(Clone(this));
 
     case NodeType::SOFTPP:
         return new SoftPP(Clone(this));
@@ -1127,7 +1210,7 @@ Expr const* Expression::data::function(NodeType n) const
         return new ZConic(Clone(this));
     }
 
-    FAIL("Attempt was made to create a function node of an unknown type.");
+    return Clone(Nan::instance);
 }
 
 /***********************************************************************************************************************
@@ -1139,7 +1222,7 @@ struct Add final : public OperatorNode, private ObjectGuard<Add>
     Add(Expr const*, Expr const*);
     virtual ~Add();
 
-    double value() const override final;
+    double value() const override final { return f_x->evaluate() + g_x->evaluate(); }
 
     Expr const* add(Expr const*) const override final;
     Expr const* commutative_add(Expr const*) const override final;
@@ -1273,41 +1356,14 @@ Expr const* Expression::data::abs() const
 }
 
 /***********************************************************************************************************************
-*** sign()
+*** signum()
 ***********************************************************************************************************************/
 
-Expr const* Expression::data::sign() const
+Expr const* Expression::data::signum() const
 {
     if (guaranteed(Attr::POSITIVE)) return Clone(literal1);
     if (guaranteed(Attr::NEGATIVE)) return Clone(literal1Neg);
-    return function(NodeType::SIGN);
-}
-
-Expr const* Abs::sign() const  // sign(abs(x)) ----> abs(sign(x))
-{
-    auto step0 = f_x->sign();
-    auto step1 = step0->abs();
-    Erase(step0);
-    return step1;
-}
-
-Expr const* ASin::sign() const  // sign(asin(x)) ----> sign(x)  ; iff -1 <= x <= 1
-{
-    return f_x->guaranteed(Attr::UNITRANGE) ? f_x->sign() : Expr::sign();
-}
-
-Expr const* ATanH::sign() const  // sign(atanh(x)) -----> sign(x)  ; iff -1 < x < 1
-{
-    return f_x->guaranteed(Attr::OPENUNITRANGE) ? f_x->sign() : Expr::sign();
-}
-
-/***********************************************************************************************************************
-*** sqrt()
-***********************************************************************************************************************/
-
-Expr const* Sign::sqrt() const  // sqrt(sign(x)) ----> sign(x)  ; iff x >= 0
-{
-    return f_x->guaranteed(Attr::NONNEGATIVE) ? Clone(this) : Expr::sqrt();
+    return function(NodeType::SIGNUM);
 }
 
 /***********************************************************************************************************************
@@ -1321,14 +1377,13 @@ Expr const* Expression::data::add(Expr const* p) const
 
 Expr const* Expression::data::commutative_add(Expr const* p) const
 {
-    if (addNode.find(p) != addNode.end()) return Clone(addNode[p]);
-    return new Add(Clone(p), Clone(this));
+    auto node = addNode.find(p);
+    return node != addNode.end() ? Clone(node->second) : new Add(Clone(p), Clone(this));
 }
 
 Expr const* ConstantNode::add(Expr const* p) const
 {
     if (p->is(NodeType::CONSTANT)) return constant(n + p->evaluate());
-    if (p->is(NodeType::NEGATE, this)) return Clone(literal0);
     if (n == 0) return Clone(p);
     return Expr::add(p);
 }
@@ -1336,7 +1391,6 @@ Expr const* ConstantNode::add(Expr const* p) const
 Expr const* ConstantNode::commutative_add(Expr const* p) const
 {
     if (p->is(NodeType::CONSTANT)) return constant(n + p->evaluate());
-    if (p->is(NodeType::NEGATE, this)) return Clone(literal0);
     if (n == 0) return Clone(p);
     return Expr::commutative_add(p);
 }
@@ -1406,8 +1460,8 @@ Expr const* Expression::data::mul(Expr const* p) const
 
 Expr const* Expression::data::commutative_mul(Expr const* p) const
 {
-    if (mulNode.find(p) != mulNode.end()) return Clone(mulNode[p]);
-    return new Mul(Clone(p), Clone(this));
+    auto node = mulNode.find(p);
+    return node != mulNode.end() ? Clone(node->second) : new Mul(Clone(p), Clone(this));
 }
 
 Expr const* ConstantNode::mul(Expr const* p) const
@@ -1589,7 +1643,7 @@ Expr const* Expression::data::pow(Expr const* p) const
 {
     if (p->is(NodeType::CONSTANT))
     {
-        auto n = p->evaluate();
+        double n = p->evaluate();
         if (n == 0) return Clone(literal1);
         if (n == 1) return Clone(this);
         if (n == 2) return square();
@@ -1598,9 +1652,8 @@ Expr const* Expression::data::pow(Expr const* p) const
         if (n == 1.0 / 3.0) return cbrt();
     }
 
-    if (powNode.find(p) != powNode.end()) return Clone(powNode[p]);
-
-    return new Pow(Clone(this), Clone(p));
+    auto node = powNode.find(p);
+    return node != powNode.end() ? Clone(node->second) : new Pow(Clone(this), Clone(p));
 }
 
 Expr const* ConstantNode::pow(Expr const* p) const
@@ -1618,7 +1671,7 @@ Expr const* ConstantNode::pow(Expr const* p) const
 
 Expr const* ConstantNode::derivative(Variable const&) const
 {
-    // D(C) = 0
+    // D(n) = 0
 
     return Clone(literal0);
 }
@@ -1632,10 +1685,10 @@ Expr const* VariableNode::derivative(Variable const& r) const
 
 Expr const* Abs::derivative(Variable const& r) const
 {
-    // D(abs(f_x)) = D(f_x) * sign(f_x)
+    // D(abs(f_x)) = D(f_x) * signum(f_x)
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->sign();
+    auto step1 = f_x->signum();
     auto step2 = step0->mul(step1);
 
     Erase(step0);
@@ -1644,19 +1697,12 @@ Expr const* Abs::derivative(Variable const& r) const
     return step2;
 }
 
-Expr const* Sign::derivative(Variable const& r) const
-{
-    // D(sign(f_x)) = D(f_x) * 0 = 0
-
-    return Clone(literal0);
-}
-
 Expr const* Sqrt::derivative(Variable const& r) const
 {
     // D(sqrt(f_x)) = D(f_x) * 1/(2*sqrt(f_x))
 
     auto step0 = f_x->derive(r);
-    auto step1 = add(this);
+    auto step1 = mul(literal2);
     auto step2 = step1->invert();
     auto step3 = step0->mul(step2);
 
@@ -1697,9 +1743,37 @@ Expr const* Exp::derivative(Variable const& r) const
     return step1;
 }
 
+Expr const* ExpM1::derivative(Variable const& r) const
+{
+    // D(exp(f_x)-1) = D(f_x) * exp(f_x)
+
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->exp();
+    auto step2 = step0->mul(step1);
+
+    Erase(step0);
+    Erase(step1);
+
+    return step2;
+}
+
 Expr const* Log::derivative(Variable const& r) const
 {
     // D(log(f_x)) = D(f_x) * 1/f_x
+
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->invert();
+    auto step2 = step0->mul(step1);
+
+    Erase(step0);
+    Erase(step1);
+
+    return step2;
+}
+
+Expr const* Log1P::derivative(Variable const& r) const
+{
+    // D(log(f_x)+1) = D(f_x) * 1/f_x
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->invert();
@@ -1746,7 +1820,7 @@ Expr const* Tan::derivative(Variable const& r) const
     // D(tan(f_x)) = D(f_x) * 1/cos(f_x)^2
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->secant();
+    auto step1 = f_x->sec();
     auto step2 = step1->square();
     auto step3 = step0->mul(step2);
 
@@ -1839,20 +1913,18 @@ Expr const* CosH::derivative(Variable const& r) const
 
 Expr const* TanH::derivative(Variable const& r) const
 {
-    // D(tanh(f_x)) = D(f_x) * 1/cosh(f_x)^2
+    // D(tanh(f_x)) = D(f_x) * sech(f_x)^2
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->cosh();
+    auto step1 = f_x->sech();
     auto step2 = step1->square();
-    auto step3 = step2->invert();
-    auto step4 = step0->mul(step3);
+    auto step3 = step0->mul(step2);
 
     Erase(step0);
     Erase(step1);
     Erase(step2);
-    Erase(step3);
 
-    return step4;
+    return step3;
 }
 
 Expr const* ASinH::derivative(Variable const& r) const
@@ -1907,13 +1979,15 @@ Expr const* ATanH::derivative(Variable const& r) const
 
 Expr const* Erf::derivative(Variable const& r) const
 {
+    ConstantNode InvSqrtAtan1(1 / std::sqrt(std::atan(1)));
+
     // D(erf(f_x)) = D(f_x) * 1/exp(f_x^2) * 1/sqrt(atan(1))
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->square();
     auto step2 = step1->exp();
     auto step3 = step2->invert();
-    auto step4 = step3->mul(erfDiffConst);
+    auto step4 = step3->mul(InvSqrtAtan1);
     auto step5 = step0->mul(step4);
 
     Erase(step0);
@@ -1923,6 +1997,35 @@ Expr const* Erf::derivative(Variable const& r) const
     Erase(step4);
 
     return step5;
+}
+
+Expr const* ErfC::derivative(Variable const& r) const
+{
+    ConstantNode InvNegSqrtAtan1(-1 / std::sqrt(std::atan(1)));
+
+    // D(erfc(f_x)) = D(f_x) * 1/exp(f_x^2) * -1/sqrt(atan(1))
+
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->square();
+    auto step2 = step1->exp();
+    auto step3 = step2->invert();
+    auto step4 = step3->mul(InvNegSqrtAtan1);
+    auto step5 = step0->mul(step4);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+    Erase(step3);
+    Erase(step4);
+
+    return step5;
+}
+
+Expr const* Boolean::derivative(Variable const& r) const
+{
+    // D(0) = D(1) = 0
+
+    return Clone(literal0);
 }
 
 Expr const* Invert::derivative(Variable const& r) const
@@ -1953,9 +2056,9 @@ Expr const* Negate::derivative(Variable const& r) const
     return step1;
 }
 
-Expr const* Secant::derivative(Variable const& r) const
+Expr const* Sec::derivative(Variable const& r) const
 {
-    // D(secant(f_x)) = D(f_x) * tan(f_x)*secant(f_x)
+    // D(sec(f_x)) = D(f_x) * tan(f_x)*sec(f_x)
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->tan();
@@ -1969,15 +2072,15 @@ Expr const* Secant::derivative(Variable const& r) const
     return step3;
 }
 
-Expr const* SoftPP::derivative(Variable const& r) const
+Expr const* SecH::derivative(Variable const& r) const
 {
-    // D(-Li2(-exp(f_x))) = D(f_x) * log(1+exp(f_x))
+    // D(sech(f_x)) = D(f_x) * -tanh(f_x)*sech(f_x)
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->exp();
-    auto step2 = step1->add(literal1);
-    auto step3 = step2->log();
-    auto step4 = step0->mul(step3);
+    auto step1 = f_x->tanh();
+    auto step2 = mul(step1);
+    auto step3 = step0->mul(step2);
+    auto step4 = step3->negate();
 
     Erase(step0);
     Erase(step1);
@@ -1987,17 +2090,40 @@ Expr const* SoftPP::derivative(Variable const& r) const
     return step4;
 }
 
+Expr const* Signum::derivative(Variable const& r) const
+{
+    // D(signum(f_x)) = D(f_x) * 0 = 0
+
+    return Clone(literal0);
+}
+
+Expr const* SoftPP::derivative(Variable const& r) const
+{
+    // D(-Li2(-exp(f_x))) = D(f_x) * log(1+exp(f_x))
+
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->exp();
+    auto step2 = step1->log1p();
+    auto step3 = step0->mul(step2);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+
+    return step3;
+}
+
 Expr const* Spence::derivative(Variable const& r) const
 {
-    // D(Li2(f_x)) = D(f_x) * log(1-f_x)/f_x
+    // D(Li2(f_x)) = D(f_x) * -log(1-f_x)/f_x
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->negate();
-    auto step2 = step1->add(literal1);
-    auto step3 = step2->log();
-    auto step4 = f_x->invert();
-    auto step5 = step3->mul(step4);
-    auto step6 = step0->mul(step5);
+    auto step2 = step1->log1p();
+    auto step3 = f_x->invert();
+    auto step4 = step2->mul(step3);
+    auto step5 = step0->mul(step4);
+    auto step6 = step5->negate();
 
     Erase(step0);
     Erase(step1);
@@ -2137,35 +2263,6 @@ Expr const* Pow::derivative(Variable const& r) const
 *** value()
 ***********************************************************************************************************************/
 
-double Square::value() const
-{
-    auto x = f_x->evaluate();
-    return x * x;
-}
-
-double XConic::value() const
-{
-    auto x = f_x->evaluate();
-    return std::sqrt(x * x - 1);
-}
-
-double YConic::value() const
-{
-    auto x = f_x->evaluate();
-    return std::sqrt(1 + x * x);
-}
-
-double ZConic::value() const
-{
-    auto x = f_x->evaluate();
-    return std::sqrt(1 - x * x);
-}
-
-double Add::value() const
-{
-    return f_x->evaluate() + g_x->evaluate();
-}
-
 double Mul::value() const
 {
     // NOTE: All of '0*inf', '0*nan', 'inf*0', 'nan*0' deliberately evaluate as '0'
@@ -2182,6 +2279,35 @@ double Mul::value() const
 /***********************************************************************************************************************
 *** guaranteed()
 ***********************************************************************************************************************/
+
+/*
+bool <generic>::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
+    {
+    case Attr::DEFINED:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::UNITRANGE:
+    case Attr::ANTIUNITRANGE:
+    case Attr::OPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
+        ;
+    }
+
+    return false;
+}
+*/
 
 bool ConstantNode::guaranteed(Attr a) const
 {
@@ -2287,39 +2413,6 @@ bool Abs::guaranteed(Attr a) const
     return false;
 }
 
-bool Sign::guaranteed(Attr a) const
-{
-    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
-    {
-    case Attr::DEFINED:
-    case Attr::UNITRANGE:
-    case Attr::BOUNDEDABOVE:
-    case Attr::BOUNDEDBELOW:
-        return true;
-
-    case Attr::NONZERO:
-    case Attr::POSITIVE:
-    case Attr::NEGATIVE:
-    case Attr::NONPOSITIVE:
-    case Attr::NONNEGATIVE:
-        return f_x->guaranteed(a);
-
-    case Attr::ANTIOPENUNITRANGE:
-        return f_x->guaranteed(Attr::NONZERO);
-
-    case Attr::CONTINUOUS:
-        return f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
-
-    case Attr::NONINCREASING:
-        return f_x->guaranteed(Attr::NONINCREASING) || f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
-
-    case Attr::NONDECREASING:
-        return f_x->guaranteed(Attr::NONDECREASING) || f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
-    }
-
-    return false;
-}
-
 bool Sqrt::guaranteed(Attr a) const
 {
     if (f_x->guaranteed(Attr::NONNEGATIVE)) switch (a)
@@ -2411,6 +2504,35 @@ bool Exp::guaranteed(Attr a) const
     return false;
 }
 
+bool ExpM1::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
+    {
+    case Attr::DEFINED:
+    case Attr::BOUNDEDBELOW:
+        return true;
+
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+        return f_x->guaranteed(a);
+
+    case Attr::UNITRANGE:
+    case Attr::OPENUNITRANGE:
+        return f_x->guaranteed(Attr::NONPOSITIVE);
+    }
+
+    return false;
+}
+
 bool Log::guaranteed(Attr a) const
 {
     if (f_x->guaranteed(Attr::POSITIVE)) switch (a)
@@ -2440,6 +2562,31 @@ bool Log::guaranteed(Attr a) const
 
     case Attr::NONNEGATIVE:
         return f_x->guaranteed(Attr::ANTIOPENUNITRANGE);
+    }
+
+    return false;
+}
+
+bool Log1P::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::OPENUNITRANGE) || f_x->guaranteed(Attr::POSITIVE)) switch (a)
+    {
+    case Attr::DEFINED:
+        return true;
+
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
+        return f_x->guaranteed(a);
     }
 
     return false;
@@ -2481,12 +2628,6 @@ bool Cos::guaranteed(Attr a) const
 
 bool Tan::guaranteed(Attr a) const
 {
-    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
-    {
-    case Attr::DEFINED:
-        return true;
-    }
-
     return false;
 }
 
@@ -2773,6 +2914,16 @@ bool Erf::guaranteed(Attr a) const
     return false;
 }
 
+bool ErfC::guaranteed(Attr a) const
+{
+    return false;
+}
+
+bool Boolean::guaranteed(Attr a) const
+{
+    return false;
+}
+
 bool Invert::guaranteed(Attr a) const
 {
     if (f_x->guaranteed(Attr::NONZERO)) switch (a)
@@ -2867,18 +3018,98 @@ bool Negate::guaranteed(Attr a) const
     return false;
 }
 
-bool Secant::guaranteed(Attr a) const
+bool Sec::guaranteed(Attr a) const
 {
+    return false;
+}
+
+bool SecH::guaranteed(Attr a) const
+{
+    return false;
+}
+
+bool Signum::guaranteed(Attr a) const
+{
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
+    {
+    case Attr::DEFINED:
+    case Attr::UNITRANGE:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
+        return true;
+
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+        return f_x->guaranteed(a);
+
+    case Attr::ANTIOPENUNITRANGE:
+        return f_x->guaranteed(Attr::NONZERO);
+
+    case Attr::CONTINUOUS:
+        return f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
+
+    case Attr::NONINCREASING:
+        return f_x->guaranteed(Attr::NONINCREASING) || f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
+
+    case Attr::NONDECREASING:
+        return f_x->guaranteed(Attr::NONDECREASING) || f_x->guaranteed(Attr::POSITIVE) || f_x->guaranteed(Attr::NEGATIVE);
+    }
+
     return false;
 }
 
 bool SoftPP::guaranteed(Attr a) const
 {
+    if (f_x->guaranteed(Attr::DEFINED)) switch (a)
+    {
+    case Attr::DEFINED:
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::UNITRANGE:
+    case Attr::ANTIUNITRANGE:
+    case Attr::OPENUNITRANGE:
+    case Attr::ANTIOPENUNITRANGE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDABOVE:
+    case Attr::BOUNDEDBELOW:
+        ;
+    }
+
     return false;
 }
 
 bool Spence::guaranteed(Attr a) const
 {
+    if (f_x->guaranteed(Attr::UNITRANGE) || f_x->guaranteed(Attr::NEGATIVE)) switch (a)
+    {
+    case Attr::DEFINED:
+    case Attr::BOUNDEDABOVE:
+        return true;
+
+    case Attr::NONZERO:
+    case Attr::POSITIVE:
+    case Attr::NEGATIVE:
+    case Attr::NONPOSITIVE:
+    case Attr::NONNEGATIVE:
+    case Attr::CONTINUOUS:
+    case Attr::INCREASING:
+    case Attr::DECREASING:
+    case Attr::NONINCREASING:
+    case Attr::NONDECREASING:
+    case Attr::BOUNDEDBELOW:
+        return f_x->guaranteed(a);
+    }
+
     return false;
 }
 
@@ -3249,13 +3480,6 @@ void Abs::print(std::ostream& out) const
     out << ")";
 }
 
-void Sign::print(std::ostream& out) const
-{
-    out << "sign(";
-    f_x->print(out);
-    out << ")";
-}
-
 void Sqrt::print(std::ostream& out) const
 {
     out << "sqrt(";
@@ -3277,9 +3501,23 @@ void Exp::print(std::ostream& out) const
     out << ")";
 }
 
+void ExpM1::print(std::ostream& out) const
+{
+    out << "expm1(";
+    f_x->print(out);
+    out << ")";
+}
+
 void Log::print(std::ostream& out) const
 {
     out << "log(";
+    f_x->print(out);
+    out << ")";
+}
+
+void Log1P::print(std::ostream& out) const
+{
+    out << "log1p(";
     f_x->print(out);
     out << ")";
 }
@@ -3375,6 +3613,20 @@ void Erf::print(std::ostream& out) const
     out << ")";
 }
 
+void ErfC::print(std::ostream& out) const
+{
+    out << "erfc(";
+    f_x->print(out);
+    out << ")";
+}
+
+void Boolean::print(std::ostream& out) const
+{
+    out << "boolean(";
+    f_x->print(out);
+    out << ")";
+}
+
 void Invert::print(std::ostream& out) const
 {
     out << "1/(";
@@ -3390,9 +3642,23 @@ void Negate::print(std::ostream& out) const
     if (f_x->is(NodeType::ADD)) out << ")";
 }
 
-void Secant::print(std::ostream& out) const
+void Sec::print(std::ostream& out) const
 {
-    out << "secant(";
+    out << "sec(";
+    f_x->print(out);
+    out << ")";
+}
+
+void SecH::print(std::ostream& out) const
+{
+    out << "sech(";
+    f_x->print(out);
+    out << ")";
+}
+
+void Signum::print(std::ostream& out) const
+{
+    out << "signum(";
     f_x->print(out);
     out << ")";
 }
@@ -3406,7 +3672,7 @@ void SoftPP::print(std::ostream& out) const
 
 void Spence::print(std::ostream& out) const
 {
-    out << "spence(";
+    out << "Li2(";
     f_x->print(out);
     out << ")";
 }
@@ -3473,7 +3739,7 @@ void Pow::print(std::ostream& out) const
 *** Expression
 ***********************************************************************************************************************/
 
-Expression::Expression() : pData(Shared::Clone(NullExpression::instance))
+Expression::Expression() : pData(Shared::Clone(Nan::instance))
 {
 }
 
@@ -3517,11 +3783,6 @@ Expression abs(Expression const& r)
     return r.pData->abs();
 }
 
-Expression sign(Expression const& r)
-{
-    return r.pData->sign();
-}
-
 Expression sqrt(Expression const& r)
 {
     return r.pData->sqrt();
@@ -3537,9 +3798,19 @@ Expression exp(Expression const& r)
     return r.pData->exp();
 }
 
+Expression expm1(Expression const& r)
+{
+    return r.pData->expm1();
+}
+
 Expression log(Expression const& r)
 {
     return r.pData->log();
+}
+
+Expression log1p(Expression const& r)
+{
+    return r.pData->log1p();
 }
 
 Expression sin(Expression const& r)
@@ -3607,14 +3878,24 @@ Expression erf(Expression const& r)
     return r.pData->erf();
 }
 
-Expression ISp(Expression const& r)
+Expression erfc(Expression const& r)
 {
-    return r.pData->softpp();
+    return r.pData->erf();
+}
+
+Expression sgn(Expression const& r)
+{
+    return r.pData->signum();
 }
 
 Expression Li2(Expression const& r)
 {
     return r.pData->spence();
+}
+
+Expression ISp(Expression const& r)
+{
+    return r.pData->softpp();
 }
 
 Expression operator+(Expression const& r)
@@ -3659,6 +3940,16 @@ Expression operator/(Expression const& r, Expression const& s)
     Shared::Erase(step0);
 
     return step1;
+}
+
+double Expression::operator()() const noexcept
+{
+    return pData->evaluate();
+}
+
+Expression::operator double() const
+{
+    return pData->evaluate();
 }
 
 Expression pow(Expression const& r, Expression const& s)
@@ -3706,7 +3997,6 @@ std::ostream& operator<<(std::ostream& r, Expression const& s)
 struct Variable::data : public Shared
 {
     data(double d) : value(d), name("[&" + std::to_string(size_t(this) / sizeof(*this)) + "]") { }
-    data(double d, std::string const& r) : value(d), name(r) { }
 
     mutable double value;
     mutable std::string name;
@@ -3716,11 +4006,11 @@ struct Variable::data : public Shared
 *** Variable
 ***********************************************************************************************************************/
 
-Variable::Variable(Variable const& r) noexcept : pData(Shared::Clone(r.pData))
+Variable::Variable(double d) : pData(new data(d))
 {
 }
 
-Variable::Variable(char const* p, double d) : pData(p ? new data(d, p) : new data(d))
+Variable::Variable(Variable const& r) noexcept : pData(Shared::Clone(r.pData))
 {
 }
 
@@ -3746,6 +4036,11 @@ Variable::operator double() const noexcept
     return pData->value;
 }
 
+double Variable::operator()() const noexcept
+{
+    return pData->value;
+}
+
 std::string Variable::Name() const
 {
     return pData->name;
@@ -3756,20 +4051,20 @@ void Variable::Name(std::string const& s)
     pData->name = s;
 }
 
-Variable::data const* Variable::id() const
+size_t Variable::id() const
 {
-    return pData;
+    return size_t(pData);
 }
 
 /***********************************************************************************************************************
 *** Additional functions
 ***********************************************************************************************************************/
 
-double bernoulli(double const x)
+double bernoulli(double x)
 {
     assert(abs(x) <= log(2));
 
-    double const x2 = x * x;
+    double const x2(x * x);
     double power[8];
 
     power[0] = x2 * x;
@@ -3792,13 +4087,7 @@ double bernoulli(double const x)
     total -= power[1] * 2.77777777777777778e-04;
     total += power[0] * 2.77777777777777778e-02;
 
-    return total + x - x2 / 4;
-}
-
-double ISp(double x)
-{
-    if (x > 0) return x * x / 2 - ISp(-x) + 1.64493406684822644e-00;
-    return -bernoulli(-log1p(exp(x)));
+    return total - x2 / 4 + x;
 }
 
 double Li2(double x)
@@ -3817,6 +4106,12 @@ double Li2(double x)
         if (x < -1) return -Li2(1 / x) - PiPiDiv6 - log(-x) * log(-x) / 2;
         return bernoulli(-log1p(-x));
     }
+}
+
+double ISp(double x)
+{
+    if (x > 0) return x * x / 2 - ISp(-x) + 1.64493406684822644e-00;
+    return -bernoulli(-log1p(exp(x)));
 }
 
 //**********************************************************************************************************************
