@@ -25,6 +25,8 @@ SOFTWARE.
 
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <string>
 
 /***********************************************************************************************************************
@@ -89,7 +91,7 @@ struct Expression final
 
     friend Expression sgn(Expression const&);
     friend Expression Li2(Expression const&);
-    friend Expression ISp(Expression const&);
+    friend Expression Spp(Expression const&);
 
     friend Expression operator+(Expression const&);
     friend Expression operator-(Expression const&);
@@ -158,6 +160,6 @@ inline Expression log10(Expression const& x) { return log(x) / log(10); }
 inline double sgn(double x) { return double(x > 0) - double(x < 0); }
 
 double Li2(double);  // Polylog2
-double ISp(double);  // Integral of Softplus
+double Spp(double);  // Integral of Softplus
 
 //**********************************************************************************************************************
