@@ -2094,7 +2094,7 @@ Expr const* SecH::derivative(Variable const& r) const
 
 Expr const* Signum::derivative(Variable const& r) const
 {
-    // D(signum(f_x)) = D(f_x) * 0 = 0
+    // D(signum(f_x)) = D(f_x) * 0
 
     return Clone(literal0);
 }
@@ -2205,7 +2205,7 @@ Expr const* Add::derivative(Variable const& r) const
 
     auto step0 = f_x->derive(r);
     auto step1 = g_x->derive(r);
-    auto step2 = step1->add(step0);
+    auto step2 = step0->add(step1);
 
     Erase(step0);
     Erase(step1);
@@ -2219,9 +2219,9 @@ Expr const* Mul::derivative(Variable const& r) const
 
     auto step0 = f_x->derive(r);
     auto step1 = g_x->derive(r);
-    auto step2 = step1->mul(f_x);
-    auto step3 = step0->mul(g_x);
-    auto step4 = step3->add(step2);
+    auto step2 = f_x->mul(step1);
+    auto step3 = g_x->mul(step0);
+    auto step4 = step2->add(step3);
 
     Erase(step0);
     Erase(step1);
