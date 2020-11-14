@@ -77,7 +77,7 @@ struct Expression::data : public Shared
     virtual Expr const* boolean() const { return function(NodeType::BOOLEAN); }
     virtual Expr const* invert() const { return function(NodeType::INVERT); }
     virtual Expr const* negate() const { return function(NodeType::NEGATE); }
-    virtual Expr const* sec() const { return function(NodeType::SEC); }
+    virtual Expr const* secant() const { return function(NodeType::SECANT); }
     virtual Expr const* sech() const { return function(NodeType::SECH); }
     virtual Expr const* signum() const;
     virtual Expr const* softpp() const { return function(NodeType::SOFTPP); }
@@ -107,7 +107,7 @@ struct Expression::data : public Shared
     enum class NodeType
     {
         ABS, SQRT, CBRT, EXP, EXPM1, LOG, LOG1P, SIN, COS, TAN, ASIN, ACOS, ATAN, SINH, COSH, TANH, ASINH, ACOSH, ATANH, ERF, ERFC,
-        BOOLEAN, INVERT, NEGATE, SEC, SECH, SIGNUM, SOFTPP, SPENCE, SQUARE, XCONIC, YCONIC, ZCONIC, CONSTANT, VARIABLE, ADD, MUL, POW
+        BOOLEAN, INVERT, NEGATE, SECANT, SECH, SIGNUM, SOFTPP, SPENCE, SQUARE, XCONIC, YCONIC, ZCONIC, CONSTANT, VARIABLE, ADD, MUL, POW
     };
 
     virtual bool is(NodeType) const = 0;
@@ -259,7 +259,7 @@ struct Nan final : public Expr
     Expr const* boolean() const override final { return Clone(this); }
     Expr const* invert() const override final { return Clone(this); }
     Expr const* negate() const override final { return Clone(this); }
-    Expr const* sec() const override final { return Clone(this); }
+    Expr const* secant() const override final { return Clone(this); }
     Expr const* sech() const override final { return Clone(this); }
     Expr const* signum() const override final { return Clone(this); }
     Expr const* softpp() const override final { return Clone(this); }
@@ -334,10 +334,10 @@ struct ConstantNode final : public Expr, private ObjectGuard<ConstantNode>
     Expr const* boolean() const override final { return constant(n != 0); }
     Expr const* invert() const override final { return constant(1 / n); }
     Expr const* negate() const override final { return constant(-n); }
-    Expr const* sec() const override final { return constant(1 / std::cos(n)); }
+    Expr const* secant() const override final { return constant(1 / std::cos(n)); }
     Expr const* sech() const override final { return constant(1 / std::cosh(n)); }
     Expr const* signum() const override final { return constant(double(n > 0) - (n < 0)); }
-    Expr const* softpp() const override final { return constant(::ISp(n)); }
+    Expr const* softpp() const override final { return constant(::Spp(n)); }
     Expr const* spence() const override final { return constant(::Li2(n)); }
     Expr const* square() const override final { return constant(n * n); }
     Expr const* xconic() const override final { return constant(std::sqrt(n * n - 1)); }
@@ -588,7 +588,7 @@ struct Cos final : public FunctionNode, private ObjectGuard<Cos>
 {
     Cos(Expr const* p) : FunctionNode(p, NodeType::COS) { }
 
-    Expr const* invert() const { return f_x->sec(); }
+    Expr const* invert() const { return f_x->secant(); }
     Expr const* zconic() const override final { auto step0 = f_x->sin(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
@@ -625,7 +625,7 @@ struct ASin final : public FunctionNode, private ObjectGuard<ASin>
 
     Expr const* sin() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? Clone(f_x) : Expr::sin(); }
     Expr const* cos() const override final { return f_x->zconic(); }
-    Expr const* sec() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
+    Expr const* secant() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* signum() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? f_x->signum() : Expr::signum(); }
 
     bool guaranteed(Attr) const override final;
@@ -647,7 +647,7 @@ struct ACos final : public FunctionNode, private ObjectGuard<ACos>
     Expr const* abs() const override final { return Clone(this); }
     Expr const* sin() const override final { return f_x->zconic(); }
     Expr const* cos() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? Clone(f_x) : Expr::cos(); }
-    Expr const* sec() const override final { return f_x->invert(); }
+    Expr const* secant() const override final { return f_x->invert(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -667,7 +667,7 @@ struct ATan final : public FunctionNode, private ObjectGuard<ATan>
 
     Expr const* cos() const override final { auto step0 = f_x->yconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* tan() const override final { return Clone(f_x); }
-    Expr const* sec() const override final { return f_x->yconic(); }
+    Expr const* secant() const override final { return f_x->yconic(); }
     Expr const* signum() const override final { return f_x->signum(); }
 
     bool guaranteed(Attr) const override final;
@@ -905,7 +905,7 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
     Expr const* erf() const override final { auto step0 = f_x->erf(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* invert() const override final { auto step0 = f_x->invert(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* negate() const override final { return Clone(f_x); }
-    Expr const* sec() const override final { return f_x->sec(); }
+    Expr const* secant() const override final { return f_x->secant(); }
     Expr const* signum() const override final { auto step0 = f_x->signum(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* square() const override final { return f_x->square(); }
     Expr const* xconic() const override final { return f_x->xconic(); }
@@ -927,12 +927,12 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
 };
 
 /***********************************************************************************************************************
-*** Sec
+*** Secant
 ***********************************************************************************************************************/
 
-struct Sec final : public FunctionNode, private ObjectGuard<Sec>
+struct Secant final : public FunctionNode, private ObjectGuard<Secant>
 {
-    Sec(Expr const* p) : FunctionNode(p, NodeType::SEC) { }
+    Secant(Expr const* p) : FunctionNode(p, NodeType::SECANT) { }
 
     Expr const* invert() const { return f_x->cos(); }
 
@@ -994,7 +994,7 @@ struct SoftPP final : public FunctionNode, private ObjectGuard<SoftPP>
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
-    double value() const override final { return ISp(f_x->evaluate()); }
+    double value() const override final { return Spp(f_x->evaluate()); }
 
     void print(std::ostream&) const override final;
 };
@@ -1182,8 +1182,8 @@ Expr const* Expression::data::function(NodeType n) const
     case NodeType::NEGATE:
         return new Negate(Clone(this));
 
-    case NodeType::SEC:
-        return new Sec(Clone(this));
+    case NodeType::SECANT:
+        return new Secant(Clone(this));
 
     case NodeType::SECH:
         return new SecH(Clone(this));
@@ -1680,7 +1680,7 @@ Expr const* VariableNode::derivative(Variable const& r) const
 {
     // D(x) = 1 , D(?) = 0
 
-    return constant(r.id() == x.id());
+    return Clone(r.id() == x.id() ? literal1 : literal0);
 }
 
 Expr const* Abs::derivative(Variable const& r) const
@@ -1699,11 +1699,11 @@ Expr const* Abs::derivative(Variable const& r) const
 
 Expr const* Sqrt::derivative(Variable const& r) const
 {
-    // D(sqrt(f_x)) = D(f_x) * 1/(2*sqrt(f_x))
+    // D(sqrt(f_x)) = D(f_x) * 1/2 * 1/sqrt(f_x)
 
     auto step0 = f_x->derive(r);
-    auto step1 = mul(literal2);
-    auto step2 = step1->invert();
+    auto step1 = this->invert();
+    auto step2 = step1->mul(literal2Inv);
     auto step3 = step0->mul(step2);
 
     Erase(step0);
@@ -1715,12 +1715,12 @@ Expr const* Sqrt::derivative(Variable const& r) const
 
 Expr const* Cbrt::derivative(Variable const& r) const
 {
-    // D(cbrt(f_x)) = D(f_x) * 1/(3*cbrt(f_x)^2)
+    // D(cbrt(f_x)) = D(f_x) * 1/3 * 1/cbrt(f_x)^2
 
     auto step0 = f_x->derive(r);
-    auto step1 = square();
-    auto step2 = step1->mul(literal3);
-    auto step3 = step2->invert();
+    auto step1 = this->square();
+    auto step2 = step1->invert();
+    auto step3 = step2->mul(literal3Inv);
     auto step4 = step0->mul(step3);
 
     Erase(step0);
@@ -1736,7 +1736,7 @@ Expr const* Exp::derivative(Variable const& r) const
     // D(exp(f_x)) = D(f_x) * exp(f_x)
 
     auto step0 = f_x->derive(r);
-    auto step1 = mul(step0);
+    auto step1 = step0->mul(this);
 
     Erase(step0);
 
@@ -1773,16 +1773,18 @@ Expr const* Log::derivative(Variable const& r) const
 
 Expr const* Log1P::derivative(Variable const& r) const
 {
-    // D(log(f_x)+1) = D(f_x) * 1/f_x
+    // D(log(f_x+1)) = D(f_x) * 1/(f_x+1)
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->invert();
-    auto step2 = step0->mul(step1);
+    auto step1 = f_x->add(literal1);
+    auto step2 = step1->invert();
+    auto step3 = step0->mul(step2);
 
     Erase(step0);
     Erase(step1);
+    Erase(step2);
 
-    return step2;
+    return step3;
 }
 
 Expr const* Sin::derivative(Variable const& r) const
@@ -1805,8 +1807,8 @@ Expr const* Cos::derivative(Variable const& r) const
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->sin();
-    auto step2 = step0->mul(step1);
-    auto step3 = step2->negate();
+    auto step2 = step1->negate();
+    auto step3 = step0->mul(step2);
 
     Erase(step0);
     Erase(step1);
@@ -1817,10 +1819,10 @@ Expr const* Cos::derivative(Variable const& r) const
 
 Expr const* Tan::derivative(Variable const& r) const
 {
-    // D(tan(f_x)) = D(f_x) * 1/cos(f_x)^2
+    // D(tan(f_x)) = D(f_x) * sec(f_x)^2
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->sec();
+    auto step1 = f_x->secant();
     auto step2 = step1->square();
     auto step3 = step0->mul(step2);
 
@@ -1854,8 +1856,8 @@ Expr const* ACos::derivative(Variable const& r) const
     auto step0 = f_x->derive(r);
     auto step1 = f_x->zconic();
     auto step2 = step1->invert();
-    auto step3 = step0->mul(step2);
-    auto step4 = step3->negate();
+    auto step3 = step2->negate();
+    auto step4 = step0->mul(step3);
 
     Erase(step0);
     Erase(step1);
@@ -2001,7 +2003,7 @@ Expr const* Erf::derivative(Variable const& r) const
 
 Expr const* ErfC::derivative(Variable const& r) const
 {
-    ConstantNode InvNegSqrtAtan1(-1 / std::sqrt(std::atan(1)));
+    ConstantNode NegInvSqrtAtan1(-1 / std::sqrt(std::atan(1)));
 
     // D(erfc(f_x)) = D(f_x) * 1/exp(f_x^2) * -1/sqrt(atan(1))
 
@@ -2009,7 +2011,7 @@ Expr const* ErfC::derivative(Variable const& r) const
     auto step1 = f_x->square();
     auto step2 = step1->exp();
     auto step3 = step2->invert();
-    auto step4 = step3->mul(InvNegSqrtAtan1);
+    auto step4 = step3->mul(NegInvSqrtAtan1);
     auto step5 = step0->mul(step4);
 
     Erase(step0);
@@ -2033,9 +2035,9 @@ Expr const* Invert::derivative(Variable const& r) const
     // D(1/f_x) = D(f_x) * -(1/f_x)^2
 
     auto step0 = f_x->derive(r);
-    auto step1 = square();
-    auto step2 = step0->mul(step1);
-    auto step3 = step2->negate();
+    auto step1 = this->square();
+    auto step2 = step1->negate();
+    auto step3 = step0->mul(step2);
 
     Erase(step0);
     Erase(step1);
@@ -2056,13 +2058,13 @@ Expr const* Negate::derivative(Variable const& r) const
     return step1;
 }
 
-Expr const* Sec::derivative(Variable const& r) const
+Expr const* Secant::derivative(Variable const& r) const
 {
     // D(sec(f_x)) = D(f_x) * tan(f_x)*sec(f_x)
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->tan();
-    auto step2 = mul(step1);
+    auto step2 = step1->mul(this);
     auto step3 = step0->mul(step2);
 
     Erase(step0);
@@ -2078,9 +2080,9 @@ Expr const* SecH::derivative(Variable const& r) const
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->tanh();
-    auto step2 = mul(step1);
-    auto step3 = step0->mul(step2);
-    auto step4 = step3->negate();
+    auto step2 = step1->mul(this);
+    auto step3 = step2->negate();
+    auto step4 = step0->mul(step3);
 
     Erase(step0);
     Erase(step1);
@@ -2092,14 +2094,14 @@ Expr const* SecH::derivative(Variable const& r) const
 
 Expr const* Signum::derivative(Variable const& r) const
 {
-    // D(signum(f_x)) = D(f_x) * 0 = 0
+    // D(signum(f_x)) = D(f_x) * 0
 
     return Clone(literal0);
 }
 
 Expr const* SoftPP::derivative(Variable const& r) const
 {
-    // D(-Li2(-exp(f_x))) = D(f_x) * log(1+exp(f_x))
+    // D(-Li2(-exp(f_x))) = D(f_x) * log(exp(f_x)+1)
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->exp();
@@ -2115,24 +2117,22 @@ Expr const* SoftPP::derivative(Variable const& r) const
 
 Expr const* Spence::derivative(Variable const& r) const
 {
-    // D(Li2(f_x)) = D(f_x) * -log(1-f_x)/f_x
+    // D(Li2(f_x)) = D(f_x) * log(1-f_x)/(-f_x)
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->negate();
     auto step2 = step1->log1p();
-    auto step3 = f_x->invert();
+    auto step3 = step1->invert();
     auto step4 = step2->mul(step3);
     auto step5 = step0->mul(step4);
-    auto step6 = step5->negate();
 
     Erase(step0);
     Erase(step1);
     Erase(step2);
     Erase(step3);
     Erase(step4);
-    Erase(step5);
 
-    return step6;
+    return step5;
 }
 
 Expr const* Square::derivative(Variable const& r) const
@@ -2140,7 +2140,7 @@ Expr const* Square::derivative(Variable const& r) const
     // D(f_x^2) = D(f_x) * 2*f_x
 
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->add(f_x);
+    auto step1 = f_x->mul(literal2);
     auto step2 = step0->mul(step1);
 
     Erase(step0);
@@ -2154,7 +2154,7 @@ Expr const* XConic::derivative(Variable const& r) const
     // D(sqrt(f_x^2-1)) = D(f_x) * f_x/sqrt(f_x^2-1)
 
     auto step0 = f_x->derive(r);
-    auto step1 = invert();
+    auto step1 = this->invert();
     auto step2 = step1->mul(f_x);
     auto step3 = step0->mul(step2);
 
@@ -2167,10 +2167,10 @@ Expr const* XConic::derivative(Variable const& r) const
 
 Expr const* YConic::derivative(Variable const& r) const
 {
-    // D(sqrt(1+f_x^2)) = D(f_x) * f_x / sqrt(1+f_x^2)
+    // D(sqrt(f_x^2+1)) = D(f_x) * f_x / sqrt(f_x^2+1)
 
     auto step0 = f_x->derive(r);
-    auto step1 = invert();
+    auto step1 = this->invert();
     auto step2 = step1->mul(f_x);
     auto step3 = step0->mul(step2);
 
@@ -2186,10 +2186,10 @@ Expr const* ZConic::derivative(Variable const& r) const
     // D(sqrt(1-f_x^2)) = D(f_x) * -f_x / sqrt(1-f_x^2)
 
     auto step0 = f_x->derive(r);
-    auto step1 = invert();
+    auto step1 = this->invert();
     auto step2 = step1->mul(f_x);
-    auto step3 = step0->mul(step2);
-    auto step4 = step3->negate();
+    auto step3 = step2->negate();
+    auto step4 = step0->mul(step3);
 
     Erase(step0);
     Erase(step1);
@@ -2205,7 +2205,7 @@ Expr const* Add::derivative(Variable const& r) const
 
     auto step0 = f_x->derive(r);
     auto step1 = g_x->derive(r);
-    auto step2 = step1->add(step0);
+    auto step2 = step0->add(step1);
 
     Erase(step0);
     Erase(step1);
@@ -2219,9 +2219,9 @@ Expr const* Mul::derivative(Variable const& r) const
 
     auto step0 = f_x->derive(r);
     auto step1 = g_x->derive(r);
-    auto step2 = step1->mul(f_x);
-    auto step3 = step0->mul(g_x);
-    auto step4 = step3->add(step2);
+    auto step2 = f_x->mul(step1);
+    auto step3 = g_x->mul(step0);
+    auto step4 = step2->add(step3);
 
     Erase(step0);
     Erase(step1);
@@ -2241,7 +2241,7 @@ Expr const* Pow::derivative(Variable const& r) const
     auto step3 = g_x->add(literal1Neg);
     auto step4 = f_x->pow(step3);
     auto step5 = g_x->mul(step4);
-    auto step6 = mul(step2);
+    auto step6 = this->mul(step2);
     auto step7 = step0->mul(step5);
     auto step8 = step1->mul(step6);
     auto step9 = step7->add(step8);
@@ -3018,7 +3018,7 @@ bool Negate::guaranteed(Attr a) const
     return false;
 }
 
-bool Sec::guaranteed(Attr a) const
+bool Secant::guaranteed(Attr a) const
 {
     return false;
 }
@@ -3642,9 +3642,9 @@ void Negate::print(std::ostream& out) const
     if (f_x->is(NodeType::ADD)) out << ")";
 }
 
-void Sec::print(std::ostream& out) const
+void Secant::print(std::ostream& out) const
 {
-    out << "sec(";
+    out << "secant(";
     f_x->print(out);
     out << ")";
 }
@@ -3893,7 +3893,7 @@ Expression Li2(Expression const& r)
     return r.pData->spence();
 }
 
-Expression ISp(Expression const& r)
+Expression Spp(Expression const& r)
 {
     return r.pData->softpp();
 }
@@ -4060,7 +4060,9 @@ size_t Variable::id() const
 *** Additional functions
 ***********************************************************************************************************************/
 
-double bernoulli(double x)
+static double const PiPiDiv6 = 1.64493406684822644e-00;
+
+static double bernoulli(double x)
 {
     assert(abs(x) <= log(2));
 
@@ -4092,8 +4094,6 @@ double bernoulli(double x)
 
 double Li2(double x)
 {
-    double const PiPiDiv6 = 1.64493406684822644e-00;
-
     if (x > 0.5)
     {
         if (x > 1) return nan(__FUNCTION__);  // Reals only!
@@ -4108,9 +4108,9 @@ double Li2(double x)
     }
 }
 
-double ISp(double x)
+double Spp(double x)
 {
-    if (x > 0) return x * x / 2 - ISp(-x) + 1.64493406684822644e-00;
+    if (x > 0) return x * x / 2 - Spp(-x) + PiPiDiv6;
     return -bernoulli(-log1p(exp(x)));
 }
 

@@ -49,6 +49,8 @@ struct Shared
 {
 	template <typename T, typename = typename std::enable_if<std::is_base_of<Shared, T>::value>::type> static inline T const* Clone(T const* p) noexcept { if (p) ++p->nShared; return p; }
 	template <typename T, typename = typename std::enable_if<std::is_base_of<Shared, T>::value>::type> static inline T const* Clone(T const& r) noexcept { ++r.nShared; return &r; }
+	template <typename T, typename = typename std::enable_if<std::is_base_of<Shared, T>::value>::type> static inline T* Clone(T* p) noexcept { if (p) ++p->nShared; return p; }
+	template <typename T, typename = typename std::enable_if<std::is_base_of<Shared, T>::value>::type> static inline T* Clone(T& r) noexcept { ++r.nShared; return &r; }
 	static inline void Erase(Shared const* p) noexcept { if (p && !--p->nShared) delete p; }
 
 protected:
