@@ -436,10 +436,22 @@ struct Abs final : public FunctionNode, private ObjectGuard<Abs>
     Abs(Expr const* p) : FunctionNode(p, NodeType::ABS) { }
 
     Expr const* abs() const override final { return Clone(this); }
+    Expr const* cbrt() const override final { auto step0 = f_x->cbrt(); auto step1 = step0->abs(); Erase(step0); return step1; }
     Expr const* cos() const override final { return f_x->cos(); }
+    Expr const* asin() const override final { auto step0 = f_x->asin(); auto step1 = step0->abs(); Erase(step0); return step1; }
+    Expr const* atan() const override final { auto step0 = f_x->atan(); auto step1 = step0->abs(); Erase(step0); return step1; }
+    Expr const* sinh() const override final { auto step0 = f_x->sinh(); auto step1 = step0->abs(); Erase(step0); return step1; }
     Expr const* cosh() const override final { return f_x->cosh(); }
+    Expr const* tanh() const override final { auto step0 = f_x->tanh(); auto step1 = step0->abs(); Erase(step0); return step1; }
+    Expr const* asinh() const override final { auto step0 = f_x->asinh(); auto step1 = step0->abs(); Erase(step0); return step1; }
+    Expr const* atanh() const override final { auto step0 = f_x->atanh(); auto step1 = step0->abs(); Erase(step0); return step1; }
+    Expr const* erf() const override final { auto step0 = f_x->erf(); auto step1 = step0->abs(); Erase(step0); return step1; }
+    Expr const* boolean() const override final { return f_x->boolean(); }
+    Expr const* secant() const override final { return f_x->secant(); }
+    Expr const* sech() const override final { return f_x->sech(); }
     Expr const* signum() const override final { return f_x->boolean(); }
     Expr const* square() const override final { return f_x->square(); }
+    Expr const* xconic() const override final { return f_x->xconic(); }
     Expr const* yconic() const override final { return f_x->yconic(); }
     Expr const* zconic() const override final { return f_x->zconic(); }
 
@@ -460,8 +472,11 @@ struct Sqrt final : public FunctionNode, private ObjectGuard<Sqrt>
     Sqrt(Expr const* p) : FunctionNode(p, NodeType::SQRT) { }
 
     Expr const* abs() const override final { return Clone(this); }
+#if defined(RIGOROUS)
     Expr const* square() const override final { return f_x->guaranteed(Attr::NONNEGATIVE) ? Clone(f_x) : Expr::square(); }
-
+#else
+    Expr const* square() const override final { return Clone(f_x); }
+#endif
     Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal2Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
@@ -513,7 +528,7 @@ struct Exp final : public FunctionNode, private ObjectGuard<Exp>
 };
 
 /***********************************************************************************************************************
-*** Exp
+*** ExpM1
 ***********************************************************************************************************************/
 
 struct ExpM1 final : public FunctionNode, private ObjectGuard<ExpM1>
@@ -536,7 +551,11 @@ struct Log final : public FunctionNode, private ObjectGuard<Log>
 {
     Log(Expr const* p) : FunctionNode(p, NodeType::LOG) { }
 
+#if defined(RIGOROUS)
     Expr const* exp() const override final { return f_x->guaranteed(Attr::POSITIVE) ? Clone(f_x) : Expr::exp(); }
+#else
+    Expr const* exp() const override final { return Clone(f_x); }
+#endif
 
     bool guaranteed(Attr) const override final;
 
@@ -588,7 +607,7 @@ struct Cos final : public FunctionNode, private ObjectGuard<Cos>
 {
     Cos(Expr const* p) : FunctionNode(p, NodeType::COS) { }
 
-    Expr const* invert() const { return f_x->secant(); }
+    Expr const* invert() const override final { return f_x->secant(); }
     Expr const* zconic() const override final { auto step0 = f_x->sin(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
@@ -623,10 +642,18 @@ struct ASin final : public FunctionNode, private ObjectGuard<ASin>
 {
     ASin(Expr const* p) : FunctionNode(p, NodeType::ASIN) { }
 
+#if defined(RIGOROUS)
     Expr const* sin() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? Clone(f_x) : Expr::sin(); }
+#else
+    Expr const* sin() const override final { return Clone(f_x); }
+#endif
     Expr const* cos() const override final { return f_x->zconic(); }
     Expr const* secant() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
+#if defined(RIGOROUS)
     Expr const* signum() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? f_x->signum() : Expr::signum(); }
+#else
+    Expr const* signum() const override final { return f_x->signum(); }
+#endif
 
     bool guaranteed(Attr) const override final;
 
@@ -646,7 +673,11 @@ struct ACos final : public FunctionNode, private ObjectGuard<ACos>
 
     Expr const* abs() const override final { return Clone(this); }
     Expr const* sin() const override final { return f_x->zconic(); }
+#if defined(RIGOROUS)
     Expr const* cos() const override final { return f_x->guaranteed(Attr::UNITRANGE) ? Clone(f_x) : Expr::cos(); }
+#else
+    Expr const* cos() const override final { return Clone(f_x); }
+#endif
     Expr const* secant() const override final { return f_x->invert(); }
 
     bool guaranteed(Attr) const override final;
@@ -708,6 +739,7 @@ struct CosH final : public FunctionNode, private ObjectGuard<CosH>
 
     Expr const* abs() const override final { return Clone(this); }
     Expr const* acosh() const override final { return f_x->abs(); }
+    Expr const* invert() const override final { return f_x->sech(); }
     Expr const* signum() const override final { return Clone(literal1); }
     Expr const* xconic() const override final { auto step0 = f_x->sinh(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
@@ -843,6 +875,13 @@ struct Boolean final : public FunctionNode, private ObjectGuard<Boolean>
 {
     Boolean(Expr const* p) : FunctionNode(p, NodeType::BOOLEAN) { }
 
+    Expr const* abs() const override final { return f_x->boolean(); }
+    Expr const* sqrt() const override final { return f_x->boolean(); }
+    Expr const* cbrt() const override final { return f_x->boolean(); }
+    Expr const* boolean() const override final { return Clone(this); }
+    Expr const* signum() const override final { return f_x->boolean(); }
+    Expr const* square() const override final { return f_x->boolean(); }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -863,7 +902,12 @@ struct Invert final : public FunctionNode, private ObjectGuard<Invert>
     Expr const* sqrt() const override final { auto step0 = f_x->sqrt(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* cbrt() const override final { auto step0 = f_x->cbrt(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* log() const override final { auto step0 = f_x->log(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* boolean() const override final { auto step0 = f_x->boolean(); auto step1 = step0->invert(); Erase(step0); return step1; }
+#if defined(RIGOROUS)
     Expr const* invert() const override final { return f_x->guaranteed(Attr::NONZERO) ? Clone(f_x) : Expr::invert(); }
+#else
+    Expr const* invert() const override final { return Clone(f_x); }
+#endif
     Expr const* signum() const override final { auto step0 = f_x->signum(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* square() const override final { auto step0 = f_x->square(); auto step1 = step0->invert(); Erase(step0); return step1; }
 
@@ -903,9 +947,11 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
     Expr const* asinh() const override final { auto step0 = f_x->asinh(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* atanh() const override final { auto step0 = f_x->atanh(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* erf() const override final { auto step0 = f_x->erf(); auto step1 = step0->negate(); Erase(step0); return step1; }
+    Expr const* boolean() const override final { return f_x->boolean(); }
     Expr const* invert() const override final { auto step0 = f_x->invert(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* negate() const override final { return Clone(f_x); }
     Expr const* secant() const override final { return f_x->secant(); }
+    Expr const* sech() const override final { return f_x->sech(); }
     Expr const* signum() const override final { auto step0 = f_x->signum(); auto step1 = step0->negate(); Erase(step0); return step1; }
     Expr const* square() const override final { return f_x->square(); }
     Expr const* xconic() const override final { return f_x->xconic(); }
@@ -934,7 +980,7 @@ struct Secant final : public FunctionNode, private ObjectGuard<Secant>
 {
     Secant(Expr const* p) : FunctionNode(p, NodeType::SECANT) { }
 
-    Expr const* invert() const { return f_x->cos(); }
+    Expr const* invert() const override final { return f_x->cos(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -952,7 +998,7 @@ struct SecH final : public FunctionNode, private ObjectGuard<SecH>
 {
     SecH(Expr const* p) : FunctionNode(p, NodeType::SECH) { }
 
-    Expr const* invert() const { return f_x->cosh(); }
+    Expr const* invert() const override final { return f_x->cosh(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -971,9 +1017,10 @@ struct Signum final : public FunctionNode, private ObjectGuard<Signum>
     Signum(Expr const* p) : FunctionNode(p, NodeType::SIGNUM) { }
 
     Expr const* abs() const override final { return f_x->boolean(); }
-    Expr const* sqrt() const override final { return f_x->guaranteed(Attr::NONNEGATIVE) ? Clone(this) : Expr::sqrt(); }
     Expr const* cbrt() const override final { return Clone(this); }
+    Expr const* boolean() const override final { return f_x->boolean(); }
     Expr const* signum() const override final { return Clone(this); }
+    Expr const* square() const override final { return f_x->boolean(); }
 
     bool guaranteed(Attr) const override final;
 
