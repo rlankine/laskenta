@@ -2148,7 +2148,7 @@ Expr const* Signum::derivative(Variable const& r) const
 
 Expr const* SoftPP::derivative(Variable const& r) const
 {
-    // D(-Li2(-exp(f_x))) = D(f_x) * log(exp(f_x)+1)
+    // D(-Li2(-exp(f_x))) = D(f_x) * log(1+exp(f_x))
 
     auto step0 = f_x->derive(r);
     auto step1 = f_x->exp();
@@ -4107,6 +4107,7 @@ size_t Variable::id() const
 *** Additional functions
 ***********************************************************************************************************************/
 
+static inline double sq(double d) { return d * d; }
 static double const PiPiDiv6 = 1.64493406684822644e-00;
 
 static double bernoulli(double x)
@@ -4141,18 +4142,11 @@ static double bernoulli(double x)
 
 double Li2(double x)
 {
-    if (x > 0.5)
-    {
-        if (x > 1) return nan(__FUNCTION__);  // Reals only!
-        if (x == 1) return PiPiDiv6;
-        return -Li2(1 - x) + PiPiDiv6 - log(x) * log1p(-x);
-    }
-    else
-    {
-        if (x == 0) return 0;
-        if (x < -1) return -Li2(1 / x) - PiPiDiv6 - log(-x) * log(-x) / 2;
-        return bernoulli(-log1p(-x));
-    }
+    if (x < -1) return -Li2(1 / x) - PiPiDiv6 - sq(log(-x)) / 2;
+    if (x <= 0.5) return bernoulli(-log1p(-x));
+    if (x < 1) return -Li2(1 - x) + PiPiDiv6 - log(x) * log1p(-x);
+    if (x == 1) return PiPiDiv6;
+    return nan(__FUNCTION__);  // Reals only!
 }
 
 double Spp(double x)
