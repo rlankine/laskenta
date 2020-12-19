@@ -74,7 +74,7 @@ struct Expression::data : public Shared
     virtual Expr const* erf() const { return function(NodeType::ERF); }
     virtual Expr const* erfc() const { return function(NodeType::ERFC); }
 
-    virtual Expr const* boolean() const { return function(NodeType::BOOLEAN); }
+    virtual Expr const* boolean() const;
     virtual Expr const* invert() const { return function(NodeType::INVERT); }
     virtual Expr const* negate() const { return function(NodeType::NEGATE); }
     virtual Expr const* secant() const { return function(NodeType::SECANT); }
@@ -426,6 +426,36 @@ Expr const* Expression::data::variable(Variable const& r)
     auto node = variableNode.find(r.id());
     return node != variableNode.end() ? Clone(node->second) : new VariableNode(r);
 }
+
+/***********************************************************************************************************************
+*** GradientNode
+***********************************************************************************************************************/
+
+struct GradientNode final : public Expr, private ObjectGuard<GradientNode>
+{
+    explicit GradientNode(Variable const& r) : Expr(1), x(r)
+    {
+        TODO;
+    }
+
+    virtual ~GradientNode()
+    {
+        // TODO;
+    }
+
+    bool guaranteed(Attr) const override final { TODO; }
+
+    bool is(NodeType t) const override final { TODO; }
+    bool is(NodeType t, Expr const* p) const override final { TODO; }
+
+    Expr const* derivative(Variable const&) const override final { TODO; }
+    double value() const override final { TODO; }
+
+    void print(std::ostream&) const override final { TODO; }
+
+private:
+    Variable const x;
+};
 
 /***********************************************************************************************************************
 *** Abs
@@ -1266,8 +1296,23 @@ Expr const* Expression::data::function(NodeType n) const
 
 struct Add final : public OperatorNode, private ObjectGuard<Add>
 {
-    Add(Expr const*, Expr const*);
-    virtual ~Add();
+    Add(Expr const* p, Expr const* q) : OperatorNode(p, q)
+    {
+        assert(f_x->addNode.find(g_x) == f_x->addNode.end());
+        assert(g_x->addNode.find(f_x) == g_x->addNode.end());
+
+        f_x->addNode[g_x] = this;
+        g_x->addNode[f_x] = this;
+    }
+
+    virtual ~Add()
+    {
+        assert(f_x->addNode.find(g_x) != f_x->addNode.end() && f_x->addNode[g_x] == this);
+        assert(g_x->addNode.find(f_x) != g_x->addNode.end() && g_x->addNode[f_x] == this);
+
+        f_x->addNode.erase(g_x);
+        g_x->addNode.erase(f_x);
+    }
 
     double value() const override final { return f_x->evaluate() + g_x->evaluate(); }
 
@@ -1285,34 +1330,29 @@ struct Add final : public OperatorNode, private ObjectGuard<Add>
     void print(std::ostream&) const override final;
 };
 
-//----------------------------------------------------------------------------------------------------------------------
-
-Add::Add(Expr const* p, Expr const* q) : OperatorNode(p, q)
-{
-    assert(f_x->addNode.find(g_x) == f_x->addNode.end());
-    assert(g_x->addNode.find(f_x) == g_x->addNode.end());
-
-    f_x->addNode[g_x] = this;
-    g_x->addNode[f_x] = this;
-}
-
-Add::~Add()
-{
-    assert(f_x->addNode.find(g_x) != f_x->addNode.end() && f_x->addNode[g_x] == this);
-    assert(g_x->addNode.find(f_x) != g_x->addNode.end() && g_x->addNode[f_x] == this);
-
-    f_x->addNode.erase(g_x);
-    g_x->addNode.erase(f_x);
-}
-
 /***********************************************************************************************************************
 *** Mul
 ***********************************************************************************************************************/
 
 struct Mul final : public OperatorNode, private ObjectGuard<Mul>
 {
-    Mul(Expr const* p, Expr const* q);
-    virtual ~Mul();
+    Mul(Expr const* p, Expr const* q) : OperatorNode(p, q)
+    {
+        assert(f_x->mulNode.find(g_x) == f_x->mulNode.end());
+        assert(g_x->mulNode.find(f_x) == g_x->mulNode.end());
+
+        f_x->mulNode[g_x] = this;
+        g_x->mulNode[f_x] = this;
+    }
+
+    virtual ~Mul()
+    {
+        assert(f_x->mulNode.find(g_x) != f_x->mulNode.end() && f_x->mulNode[g_x] == this);
+        assert(g_x->mulNode.find(f_x) != g_x->mulNode.end() && g_x->mulNode[f_x] == this);
+
+        f_x->mulNode.erase(g_x);
+        g_x->mulNode.erase(f_x);
+    }
 
     Expr const* mul(Expr const*) const override final;
     Expr const* commutative_mul(Expr const*) const override final;
@@ -1327,34 +1367,25 @@ struct Mul final : public OperatorNode, private ObjectGuard<Mul>
     void print(std::ostream&) const override final;
 };
 
-//----------------------------------------------------------------------------------------------------------------------
-
-Mul::Mul(Expr const* p, Expr const* q) : OperatorNode(p, q)
-{
-    assert(f_x->mulNode.find(g_x) == f_x->mulNode.end());
-    assert(g_x->mulNode.find(f_x) == g_x->mulNode.end());
-
-    f_x->mulNode[g_x] = this;
-    g_x->mulNode[f_x] = this;
-}
-
-Mul::~Mul()
-{
-    assert(f_x->mulNode.find(g_x) != f_x->mulNode.end() && f_x->mulNode[g_x] == this);
-    assert(g_x->mulNode.find(f_x) != g_x->mulNode.end() && g_x->mulNode[f_x] == this);
-
-    f_x->mulNode.erase(g_x);
-    g_x->mulNode.erase(f_x);
-}
-
 /***********************************************************************************************************************
 *** Pow
 ***********************************************************************************************************************/
 
 struct Pow final : public OperatorNode, private ObjectGuard<Pow>
 {
-    Pow(Expr const* p, Expr const* q);
-    virtual ~Pow();
+    Pow(Expr const* p, Expr const* q) : OperatorNode(p, q)
+    {
+        assert(f_x->powNode.find(g_x) == f_x->powNode.end());
+
+        f_x->powNode[g_x] = this;
+    }
+
+    virtual ~Pow()
+    {
+        assert(f_x->powNode.find(g_x) != f_x->powNode.end() && f_x->powNode[g_x] == this);
+
+        f_x->powNode.erase(g_x);
+    }
 
     Expr const* sqrt() const override final { auto step0 = g_x->mul(literal2Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
     Expr const* cbrt() const override final { auto step0 = g_x->mul(literal3Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
@@ -1375,22 +1406,6 @@ struct Pow final : public OperatorNode, private ObjectGuard<Pow>
     void print(std::ostream&) const override final;
 };
 
-//----------------------------------------------------------------------------------------------------------------------
-
-Pow::Pow(Expr const* p, Expr const* q) : OperatorNode(p, q)
-{
-    assert(f_x->powNode.find(g_x) == f_x->powNode.end());
-
-    f_x->powNode[g_x] = this;
-}
-
-Pow::~Pow()
-{
-    assert(f_x->powNode.find(g_x) != f_x->powNode.end() && f_x->powNode[g_x] == this);
-
-    f_x->powNode.erase(g_x);
-}
-
 /***********************************************************************************************************************
 *** abs()
 ***********************************************************************************************************************/
@@ -1400,6 +1415,16 @@ Expr const* Expression::data::abs() const
     if (guaranteed(Attr::NONNEGATIVE)) return Clone(this);
     if (guaranteed(Attr::NONPOSITIVE)) return negate();
     return function(NodeType::ABS);
+}
+
+/***********************************************************************************************************************
+*** boolean()
+***********************************************************************************************************************/
+
+Expr const* Expression::data::boolean() const
+{
+    if (guaranteed(Attr::NONZERO)) return Clone(literal1);
+    return function(NodeType::SIGNUM);
 }
 
 /***********************************************************************************************************************
@@ -2198,7 +2223,7 @@ Expr const* Square::derivative(Variable const& r) const
 
 Expr const* XConic::derivative(Variable const& r) const
 {
-    // D(sqrt(f_x^2-1)) = D(f_x) * f_x/sqrt(f_x^2-1)
+    // D(sqrt(f_x^2-1)) = D(f_x) * f_x / sqrt(f_x^2-1)
 
     auto step0 = f_x->derive(r);
     auto step1 = this->invert();
