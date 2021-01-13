@@ -1468,7 +1468,7 @@ Expr const* Invert::mul(Expr const* p) const
         return step2;
     }
 
-    return Expr::add(p);
+    return Expr::mul(p);
 }
 
 Expr const* Negate::mul(Expr const* p) const
