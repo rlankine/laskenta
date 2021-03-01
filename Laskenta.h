@@ -28,6 +28,7 @@ SOFTWARE.
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <vector>
 
 /***********************************************************************************************************************
 *** Variable
@@ -112,6 +113,7 @@ struct Expression final
         CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING, BOUNDEDABOVE, BOUNDEDBELOW
     };
 
+    Expression Bind(std::vector<std::pair<Variable, Expression>> const&) const;
     Expression Derive(Variable const&) const;
     double Evaluate() const;
     bool Guaranteed(Attribute) const;

@@ -24,7 +24,7 @@ SOFTWARE.
 */
 
 #include "Laskenta.h"
-// #define VERBOSE
+#define VERBOSE
 #include "Tools.h"
 
 #include <map>
@@ -95,6 +95,8 @@ struct Expression::data : public Shared
     virtual Expr const* pow(Expr const*) const;
 
     // Evaluation and derivation
+
+    virtual Expr const* bind(std::vector<std::pair<Variable, Expr const *>> const&) const = 0;
 
     Expr const* derive(Variable const& r) const { return Clone(cachedNode ? cachedNode : cachedNode = derivative(r)); }
     double evaluate() const { if (cleanLevel != dirtyLevel) { valueCache = value(); cleanLevel = dirtyLevel; } return valueCache; }
@@ -240,7 +242,9 @@ struct Nan final : public Expr
     Expr const* sqrt() const override final { return Clone(this); }
     Expr const* cbrt() const override final { return Clone(this); }
     Expr const* exp() const override final { return Clone(this); }
+    Expr const* expm1() const override final { return Clone(this); }
     Expr const* log() const override final { return Clone(this); }
+    Expr const* log1p() const override final { return Clone(this); }
     Expr const* sin() const override final { return Clone(this); }
     Expr const* cos() const override final { return Clone(this); }
     Expr const* tan() const override final { return Clone(this); }
@@ -272,6 +276,8 @@ struct Nan final : public Expr
     Expr const* mul(Expr const*) const override final { return Clone(this); }
     Expr const* commutative_mul(Expr const*) const override final { return Clone(this); }
     Expr const* pow(Expr const*) const override final { return Clone(this); }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const&) const override final { return Clone(this); }
 
     bool guaranteed(Attr) const override final { return false; }
 
@@ -347,6 +353,8 @@ struct ConstantNode final : public Expr, private ObjectGuard<ConstantNode>
     Expr const* commutative_mul(Expr const*) const override final;
     Expr const* pow(Expr const*) const override final;
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const&) const override final { return Clone(this); }
+
     bool guaranteed(Attr) const override final;
 
     bool is(NodeType t) const override final { return t == NodeType::CONSTANT; }
@@ -402,6 +410,19 @@ struct VariableNode final : public Expr, private ObjectGuard<VariableNode>
         variableNode.erase(x.id());
     }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
+    {
+        for (auto& item : r)
+        {
+            if (item.first.id() == x.id())
+            {
+                return Clone(item.second);
+            }
+        }
+
+        return Clone(this);
+    }
+
     bool guaranteed(Attr) const override final;
 
     bool is(NodeType t) const override final { return t == NodeType::VARIABLE; }
@@ -451,6 +472,8 @@ struct Abs final : public FunctionNode, private ObjectGuard<Abs>
     Expr const* yconic() const override final { return f_x->yconic(); }
     Expr const* zconic() const override final { return f_x->zconic(); }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->abs(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -470,6 +493,8 @@ struct Sgn final : public FunctionNode, private ObjectGuard<Sgn>
     Expr const* sgn() const override final { return Clone(this); }
     Expr const* cbrt() const override final { return Clone(this); }
     Expr const* square() const override final { auto step0 = f_x->square(); auto step1 = step0->sgn(); Erase(step0); return step1; }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sgn(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -491,6 +516,8 @@ struct Sqrt final : public FunctionNode, private ObjectGuard<Sqrt>
     Expr const* square() const override final { return Clone(f_x); }
     Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal2Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sqrt(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -509,6 +536,8 @@ struct Cbrt final : public FunctionNode, private ObjectGuard<Cbrt>
 
     Expr const* sgn() const override final { return f_x->sgn(); }
     Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal3Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->cbrt(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -531,6 +560,8 @@ struct Exp final : public FunctionNode, private ObjectGuard<Exp>
     Expr const* log() const override final { return Clone(f_x); }
     Expr const* pow(Expr const* p) const override final { auto step0 = f_x->mul(p); auto step1 = step0->exp();  Erase(step0); return step1; }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->exp(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -546,6 +577,8 @@ struct Exp final : public FunctionNode, private ObjectGuard<Exp>
 struct ExpM1 final : public FunctionNode, private ObjectGuard<ExpM1>
 {
     ExpM1(Expr const* p) : FunctionNode(p, NodeType::EXPM1) { }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->expm1(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -565,6 +598,8 @@ struct Log final : public FunctionNode, private ObjectGuard<Log>
 
     Expr const* exp() const override final { return Clone(f_x); }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->log(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -580,6 +615,8 @@ struct Log final : public FunctionNode, private ObjectGuard<Log>
 struct Log1P final : public FunctionNode, private ObjectGuard<Log1P>
 {
     Log1P(Expr const* p) : FunctionNode(p, NodeType::LOG1P) { }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->log1p(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -598,6 +635,8 @@ struct Sin final : public FunctionNode, private ObjectGuard<Sin>
     Sin(Expr const* p) : FunctionNode(p, NodeType::SIN) { }
 
     Expr const* zconic() const override final { auto step0 = f_x->cos(); auto step1 = step0->abs(); Erase(step0); return step1; }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sin(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -618,6 +657,8 @@ struct Cos final : public FunctionNode, private ObjectGuard<Cos>
     Expr const* invert() const override final { return f_x->sec(); }
     Expr const* zconic() const override final { auto step0 = f_x->sin(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->cos(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -633,6 +674,8 @@ struct Cos final : public FunctionNode, private ObjectGuard<Cos>
 struct Tan final : public FunctionNode, private ObjectGuard<Tan>
 {
     Tan(Expr const* p) : FunctionNode(p, NodeType::TAN) { }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->tan(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -651,6 +694,8 @@ struct Sec final : public FunctionNode, private ObjectGuard<Sec>
     Sec(Expr const* p) : FunctionNode(p, NodeType::SEC) { }
 
     Expr const* invert() const override final { return f_x->cos(); }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sec(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -673,6 +718,8 @@ struct ASin final : public FunctionNode, private ObjectGuard<ASin>
     Expr const* cos() const override final { return f_x->zconic(); }
     Expr const* sec() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->asin(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -693,6 +740,8 @@ struct ACos final : public FunctionNode, private ObjectGuard<ACos>
     Expr const* sin() const override final { return f_x->zconic(); }
     Expr const* cos() const override final { return Clone(f_x); }
     Expr const* sec() const override final { return f_x->invert(); }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->acos(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -715,6 +764,8 @@ struct ATan final : public FunctionNode, private ObjectGuard<ATan>
     Expr const* tan() const override final { return Clone(f_x); }
     Expr const* sec() const override final { return f_x->yconic(); }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->atan(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -734,6 +785,8 @@ struct SinH final : public FunctionNode, private ObjectGuard<SinH>
     Expr const* sgn() const override final { return f_x->sgn(); }
     Expr const* asinh() const override final { return Clone(f_x); }
     Expr const* yconic() const override final { return f_x->cosh(); }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sinh(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -757,6 +810,8 @@ struct CosH final : public FunctionNode, private ObjectGuard<CosH>
     Expr const* invert() const override final { return f_x->sech(); }
     Expr const* xconic() const override final { auto step0 = f_x->sinh(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->cosh(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -776,6 +831,8 @@ struct TanH final : public FunctionNode, private ObjectGuard<TanH>
     Expr const* sgn() const override final { return f_x->sgn(); }
     Expr const* atanh() const override final { return Clone(f_x); }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->tanh(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -793,6 +850,8 @@ struct SecH final : public FunctionNode, private ObjectGuard<SecH>
     SecH(Expr const* p) : FunctionNode(p, NodeType::SECH) { }
 
     Expr const* invert() const override final { return f_x->cosh(); }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sech(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -815,6 +874,8 @@ struct ASinH final : public FunctionNode, private ObjectGuard<ASinH>
     Expr const* sinh() const override final { return Clone(f_x); }
     Expr const* cosh() const override final { return f_x->yconic(); }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->asinh(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -834,6 +895,8 @@ struct ACosH final : public FunctionNode, private ObjectGuard<ACosH>
     Expr const* abs() const override final { return Clone(this); }
     Expr const* sinh() const override final { return f_x->zconic(); }
     Expr const* cosh() const override final { return Clone(f_x); }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->acosh(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -855,6 +918,8 @@ struct ATanH final : public FunctionNode, private ObjectGuard<ATanH>
     Expr const* cosh() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
     Expr const* tanh() const override final { return Clone(f_x); }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->atanh(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -873,6 +938,8 @@ struct Erf final : public FunctionNode, private ObjectGuard<Erf>
 
     Expr const* sgn() const override final { return f_x->sgn(); }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->erf(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -890,6 +957,8 @@ struct ErfC final : public FunctionNode, private ObjectGuard<ErfC>
     ErfC(Expr const* p) : FunctionNode(p, NodeType::ERF) { }
 
     // TODO: Expr const* sgn() const override final { return f_x->sgn(); }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->erfc(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -917,6 +986,8 @@ struct Invert final : public FunctionNode, private ObjectGuard<Invert>
 
     Expr const* mul(Expr const*) const override final;
     Expr const* pow(Expr const* p) const override final { auto step0 = f_x->pow(p); auto step1 = step0->invert(); Erase(step0); return step1; }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->invert(); Erase(step0); return step1; }
 
     bool easyInvert() const override final { return true; }
     bool easyNegate() const override final { return f_x->easyNegate(); }
@@ -964,6 +1035,8 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
     Expr const* add(Expr const*) const override final;
     Expr const* mul(Expr const*) const override final;
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->negate(); Erase(step0); return step1; }
+
     bool easyInvert() const override final { return f_x->easyInvert(); }
     bool easyNegate() const override final { return true; }
 
@@ -983,6 +1056,8 @@ struct SoftPP final : public FunctionNode, private ObjectGuard<SoftPP>
 {
     SoftPP(Expr const* p) : FunctionNode(p, NodeType::SOFTPP) { }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->softpp(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -998,6 +1073,8 @@ struct SoftPP final : public FunctionNode, private ObjectGuard<SoftPP>
 struct Spence final : public FunctionNode, private ObjectGuard<Spence>
 {
     Spence(Expr const* p) : FunctionNode(p, NodeType::SPENCE) { }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->spence(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -1022,6 +1099,8 @@ struct Square final : public FunctionNode, private ObjectGuard<Square>
     Expr const* commutative_mul(Expr const*) const override final;
     Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal2); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->square(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -1041,6 +1120,8 @@ struct XConic final : public FunctionNode, private ObjectGuard<XConic>
     Expr const* abs() const override final { return Clone(this); }
     Expr const* asinh() const override final { auto step0 = f_x->abs(); auto step1 = step0->acosh(); Erase(step0); return step1; }
     Expr const* yconic() const override final { return f_x->abs(); }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->xconic(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -1062,6 +1143,8 @@ struct YConic final : public FunctionNode, private ObjectGuard<YConic>
     Expr const* acosh() const override final { auto step0 = f_x->asinh(); auto step1 = step0->abs(); Erase(step0); return step1; }
     Expr const* xconic() const override final { return f_x->abs(); }
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->yconic(); Erase(step0); return step1; }
+
     bool guaranteed(Attr) const override final;
 
     Expr const* derivative(Variable const&) const override final;
@@ -1082,6 +1165,8 @@ struct ZConic final : public FunctionNode, private ObjectGuard<ZConic>
     Expr const* asin() const override final { auto step0 = f_x->abs(); auto step1 = step0->acos(); Erase(step0); return step1; }
     Expr const* acos() const override final { auto step0 = f_x->asin(); auto step1 = step0->abs(); Erase(step0); return step1; }
     Expr const* zconic() const override final { return f_x->abs(); }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->zconic(); Erase(step0); return step1; }
 
     bool guaranteed(Attr) const override final;
 
@@ -1233,6 +1318,18 @@ struct Add final : public OperatorNode, private ObjectGuard<Add>
     Expr const* mul(Expr const*) const override final;
     Expr const* commutative_mul(Expr const*) const override final;
 
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
+    {
+        auto step0 = f_x->bind(r);
+        auto step1 = g_x->bind(r);
+        auto step2 = step0->add(step1);
+
+        Erase(step0);
+        Erase(step1);
+
+        return step2;
+    }
+
     bool is(NodeType t) const override final { return t == NodeType::ADD; }
 
     bool guaranteed(Attr) const override final;
@@ -1268,6 +1365,18 @@ struct Mul final : public OperatorNode, private ObjectGuard<Mul>
 
     Expr const* mul(Expr const*) const override final;
     Expr const* commutative_mul(Expr const*) const override final;
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
+    {
+        auto step0 = f_x->bind(r);
+        auto step1 = g_x->bind(r);
+        auto step2 = step0->mul(step1);
+
+        Erase(step0);
+        Erase(step1);
+
+        return step2;
+    }
 
     bool is(NodeType t) const override final { return t == NodeType::MUL; }
 
@@ -1307,6 +1416,18 @@ struct Pow final : public OperatorNode, private ObjectGuard<Pow>
     Expr const* mul(Expr const*) const override final;
     Expr const* commutative_mul(Expr const*) const override final;
     Expr const* pow(Expr const* p) const override final { auto step0 = g_x->mul(p); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
+    {
+        auto step0 = f_x->bind(r);
+        auto step1 = g_x->bind(r);
+        auto step2 = step0->pow(step1);
+
+        Erase(step0);
+        Erase(step1);
+
+        return step2;
+    }
 
     bool is(NodeType t) const override final { return t == NodeType::POW; }
 
@@ -3910,6 +4031,13 @@ Expression::operator double() const
 Expression pow(Expression const& r, Expression const& s)
 {
     return r.pData->pow(s.pData);
+}
+
+Expression Expression::Bind(std::vector<std::pair<Variable, Expression>> const& r) const
+{
+    std::vector<std::pair<Variable, Expression::data const*>> s;
+    for (auto& item : r) s.push_back({ item.first, item.second.pData });
+    return pData->bind(s);
 }
 
 Expression Expression::Derive(Variable const& r) const
