@@ -12,22 +12,27 @@ using std::endl;
 
 //**********************************************************************************************************************
 
-static size_t const N = 80;  // Size of the Universal Function Approximator (i.e. neural network having topology 1:N:1 and range-unrestricted input and output neurons).
+static size_t const N = 85;  // Size of the Universal Function Approximator (i.e. neural network having topology 1:N:1 and range-unrestricted input and output neurons).
 
-Expression activate(Expression const& r)
+Expression activation_0(Expression const& r)
 {
-    return tanh(r);
+    return log(1 + exp(r));
 }
 
-std::vector<std::pair<double, double>> CreateTrainingSet(int const numSamples = 1000)
+Expression activation_1(Expression const& r)
+{
+    return r;
+}
+
+std::vector<std::pair<double, double>> CreateTrainingSet(int const numSamples = 100)
 {
     std::vector<std::pair<double, double>> result;
     double const PI = acos(-1);
 
-    for (int sample = 0; sample <= numSamples; ++sample)  // deliberately off-by-one
+    for (int sample = 0; sample <= numSamples; ++sample)  // deliberately off-by-one (for 'n' intervals 'n+1' samples are needed)
     {
         double angle = sample * (PI / numSamples);
-        result.push_back({ cos(angle), sin(angle) });
+        result.emplace_back(cos(angle), sin(angle));
     }
 
     return result;
@@ -37,45 +42,103 @@ std::vector<std::pair<double, double>> CreateTrainingSet(int const numSamples = 
 
 int main() try
 {
-    Variable x;     // Input value
+    Variable x;            // Source value
+    Variable y;            // Target value
 
-    Variable a[N];  // Middle layer weights
-    Variable b[N];  // Middle layer biases
-    Variable c[N];  // Output layer weights
-    Variable d;     // Output layer bias
+    Variable weight_0[N];  // Middle layer weights
+    Variable bias_0[N];    // Middle layer biases
+    Variable weight_1[N];  // Output layer weights
+    Variable bias_1;       // Output layer bias
 
-    // 1. Construct Universal Function Approximator (UFA, i.e. a neural network to learn the approximation of a function)
+    Expression func;       // The resultant integral after training
+    Expression diff;       // Derivative to be trained
 
-    Expression function = d * x;
+    Expression cost;       // Squared difference of the approximation and the expectation (used in training)
+
+    Variable rate;
+
+    Expression gradient_w0[N];
+    Expression gradient_b0[N];
+    Expression gradient_w1[N];
+    Expression gradient_b1;
 
     for (size_t i = 0; i < N; ++i)
     {
-        function = function + activate(x * a[i] + b[i]) * c[i];
+        weight_0[i] = sin(i);
+        weight_1[i] = cos(i);
     }
+
+    // 1. Construct Universal Function Approximator (UFA, i.e. a neural network to learn the approximation of a function)
+
+    Expression neuron[N];
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        neuron[i] = activation_0(bias_0[i] + weight_0[i] * x);
+    }
+
+    Expression output = x * bias_1;  // <---- Note that 'x*bias_1' degenerates to plain 'bias_1' in the trained expression
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        output = output + weight_1[i] * neuron[i];
+    }
+
+    func = activation_1(output);
 
     // 2. Derive the UFA so that you can train its differential instead of the function itself
 
-    Expression differential = function.Derive(x);
+    diff = func.Derive(x);
 
-    // 3. Define the cost function:  Given 'x' compute the distance from value of 'differential' to 'y' >squared<
+    // 3. Construct the cost function:  Given 'x' compute the distance from value of 'differential' to 'y' >squared<
 
-    Variable y;
-    Expression cost = (differential - y) * (differential - y);
+    cost = (diff - y) * (diff - y);
 
-    // 4. Create the training material batch
+    // 4. Create the training batch
 
     auto trainingset = CreateTrainingSet();
     Expression batch = 0;
-    
+
     for (auto const& item : trainingset)
     {
         std::vector<std::pair<Variable, Expression>> sample;
-        sample.push_back({ x, item.first });
-        sample.push_back({ y, item.second });
+        sample.emplace_back(x, item.first);
+        sample.emplace_back(y, item.second);
         batch = batch + cost.Bind(sample);
     }
 
-    // 5. 
+    batch = batch / double(trainingset.size());  // To average the cost of all samples
+
+    // 5. Instrument the training set for gradient descent
+
+    std::vector<std::pair<Variable, Expression>> gradients;
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        gradient_w0[i] = weight_0[i] - rate * batch.Derive(weight_0[i]);
+        gradients.emplace_back(weight_0[i], gradient_w0[i]);
+
+        gradient_b0[i] = bias_0[i] - rate * batch.Derive(bias_0[i]);
+        gradients.emplace_back(bias_0[i], gradient_b0[i]);
+
+        gradient_w1[i] = weight_1[i] - rate * batch.Derive(weight_1[i]);
+        gradients.emplace_back(weight_1[i], gradient_w1[i]);
+
+        cout << ".";
+    }
+    cout << endl;
+
+    gradient_b1 = bias_1 - rate * batch.Derive(bias_1);
+    gradients.emplace_back(bias_1, gradient_b1);
+
+    batch = batch.Bind(gradients);
+
+
+    for (int i = 0; i < 40; ++i)
+    {
+        rate = i / 1000.0;
+        cout << rate() << ", " << batch() << endl;
+    }
 }
 catch (std::exception e)
 {
