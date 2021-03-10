@@ -113,7 +113,9 @@ struct Expression final
         CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING, BOUNDEDABOVE, BOUNDEDBELOW
     };
 
-    Expression Bind(std::vector<std::pair<Variable, Expression>> const&) const;
+    friend void AtomicAssign(std::vector<std::pair<Variable, Expression>>&);
+    Expression AtomicBind(std::vector<std::pair<Variable, Expression>> const&) const;
+    Expression Bind(Variable const&, Expression const&) const;
     Expression Derive(Variable const&) const;
     double Evaluate() const;
     bool Guaranteed(Attribute) const;
