@@ -24,7 +24,7 @@ SOFTWARE.
 */
 
 #include "Laskenta.h"
-#define VERBOSE
+// #define VERBOSE
 #include "Tools.h"
 
 #include <map>
@@ -4033,11 +4033,29 @@ Expression pow(Expression const& r, Expression const& s)
     return r.pData->pow(s.pData);
 }
 
-Expression Expression::Bind(std::vector<std::pair<Variable, Expression>> const& r) const
+void AtomicAssign(std::vector<std::pair<Variable, Expression>> & r)
 {
-    std::vector<std::pair<Variable, Expression::data const*>> s;
-    for (auto& item : r) s.push_back({ item.first, item.second.pData });
-    return pData->bind(s);
+    auto const N = r.size();
+    double* p = new double[N];
+
+    for (int i = 0; i < N; ++i) p[i] = r[i].second();
+    for (int i = 0; i < N; ++i) r[i].first = p[i];
+
+    delete[] p;
+}
+
+Expression Expression::AtomicBind(std::vector<std::pair<Variable, Expression>> const& r) const
+{
+    std::vector<std::pair<Variable, Expression::data const*>> t;
+    for (auto& s : r) t.emplace_back(s.first, s.second.pData);
+    return pData->bind(t);
+}
+
+Expression Expression::Bind(Variable const& r, Expression const& s) const
+{
+    std::vector<std::pair<Variable, Expression::data const*>> t;
+    t.emplace_back(r, s.pData);
+    return pData->bind(t);
 }
 
 Expression Expression::Derive(Variable const& r) const
