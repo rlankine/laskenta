@@ -29,7 +29,7 @@ std::vector<std::pair<double, double>> CreateTrainingSet(int const numSamples = 
     std::vector<std::pair<double, double>> result;
     double const PI = acos(-1);
 
-    for (int sample = 0; sample <= numSamples; ++sample)  // deliberately off-by-one (for 'n' intervals 'n+1' samples are needed)
+    for (int sample = 0; sample <= numSamples; ++sample)  // intentionally off-by-one (for 'n' intervals 'n+1' samples are needed)
     {
         double angle = sample * (PI / numSamples);
         result.emplace_back(cos(angle), sin(angle));
@@ -38,29 +38,24 @@ std::vector<std::pair<double, double>> CreateTrainingSet(int const numSamples = 
     return result;
 }
 
+Variable x;            // Source value
+Variable y;            // Target value
+
+Variable weight_0[N];  // Middle layer weights
+Variable bias_0[N];    // Middle layer biases
+Variable weight_1[N];  // Output layer weights
+Variable bias_1;       // Output layer bias
+
+Expression func;       // The resultant integral after training
+Expression diff;       // Derivative to be trained
+Expression loss;       // Squared difference of the approximation and the expectation (used in training)
+
+Variable rate;
+
 //**********************************************************************************************************************
 
 int main() try
 {
-    Variable x;            // Source value
-    Variable y;            // Target value
-
-    Variable weight_0[N];  // Middle layer weights
-    Variable bias_0[N];    // Middle layer biases
-    Variable weight_1[N];  // Output layer weights
-    Variable bias_1;       // Output layer bias
-
-    Expression func;       // The resultant integral after training
-    Expression diff;       // Derivative to be trained
-
-    Expression cost;       // Squared difference of the approximation and the expectation (used in training)
-
-    Variable rate;
-
-    Expression gradient_w0[N];
-    Expression gradient_b0[N];
-    Expression gradient_w1[N];
-    Expression gradient_b1;
 
     for (size_t i = 0; i < N; ++i)
     {
@@ -72,17 +67,11 @@ int main() try
 
     Expression neuron[N];
 
-    for (size_t i = 0; i < N; ++i)
-    {
-        neuron[i] = activation_0(bias_0[i] + weight_0[i] * x);
-    }
+    for (size_t i = 0; i < N; ++i) neuron[i] = activation_0(bias_0[i] + weight_0[i] * x);
 
     Expression output = x * bias_1;  // <---- Note that 'x*bias_1' degenerates to plain 'bias_1' in the trained expression
 
-    for (size_t i = 0; i < N; ++i)
-    {
-        output = output + weight_1[i] * neuron[i];
-    }
+    for (size_t i = 0; i < N; ++i) output = output + weight_1[i] * neuron[i];
 
     func = activation_1(output);
 
@@ -92,21 +81,14 @@ int main() try
 
     // 3. Construct the cost function:  Given 'x' compute the distance from value of 'differential' to 'y' >squared<
 
-    cost = (diff - y) * (diff - y);
+    loss = (diff - y) * (diff - y);
 
     // 4. Create the training batch
 
-    auto trainingset = CreateTrainingSet();
+    auto trainingset = CreateTrainingSet();  // Vector of {x,y} pairs, where 'y = F(x)', where 'F()' is the function to approximate
     Expression batch = 0;
 
-    for (auto const& item : trainingset)
-    {
-        std::vector<std::pair<Variable, Expression>> sample;
-        sample.emplace_back(x, item.first);
-        sample.emplace_back(y, item.second);
-        batch = batch + cost.Bind(sample);
-    }
-
+    for (auto const& item : trainingset) batch = batch + loss.Bind(x, item.first).Bind(y, item.second);
     batch = batch / double(trainingset.size());  // To average the cost of all samples
 
     // 5. Instrument the training set for gradient descent
@@ -115,28 +97,22 @@ int main() try
 
     for (size_t i = 0; i < N; ++i)
     {
-        gradient_w0[i] = weight_0[i] - rate * batch.Derive(weight_0[i]);
-        gradients.emplace_back(weight_0[i], gradient_w0[i]);
-
-        gradient_b0[i] = bias_0[i] - rate * batch.Derive(bias_0[i]);
-        gradients.emplace_back(bias_0[i], gradient_b0[i]);
-
-        gradient_w1[i] = weight_1[i] - rate * batch.Derive(weight_1[i]);
-        gradients.emplace_back(weight_1[i], gradient_w1[i]);
-
+        gradients.emplace_back(weight_0[i], weight_0[i] - rate * batch.Derive(weight_0[i]));
+        gradients.emplace_back(bias_0[i], bias_0[i] - rate * batch.Derive(bias_0[i]));
+        gradients.emplace_back(weight_1[i], weight_1[i] - rate * batch.Derive(weight_1[i]));
         cout << ".";
     }
+
+    gradients.emplace_back(bias_1, bias_1 - rate * batch.Derive(bias_1));
     cout << endl;
 
-    gradient_b1 = bias_1 - rate * batch.Derive(bias_1);
-    gradients.emplace_back(bias_1, gradient_b1);
-
-    batch = batch.Bind(gradients);
+    batch = batch.AtomicBind(gradients);
 
 
-    for (int i = 0; i < 40; ++i)
+
+    for (int i = 0; i < 1000; ++i)
     {
-        rate = i / 1000.0;
+        rate = i / 10000.0;
         cout << rate() << ", " << batch() << endl;
     }
 }

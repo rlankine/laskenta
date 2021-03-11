@@ -17,16 +17,7 @@
     <ClCompile Include="Laskenta.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="test.cpp">
-      <Filter>Test Application</Filter>
-    </ClCompile>
-    <ClCompile Include="invert.cpp">
-      <Filter>Test Application</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
-      <Filter>Test Application</Filter>
-    </ClCompile>
-    <ClCompile Include="integral.cpp">
       <Filter>Test Application</Filter>
     </ClCompile>
   </ItemGroup>
