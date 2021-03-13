@@ -12,14 +12,12 @@ using std::endl;
 
 //**********************************************************************************************************************
 
-static size_t const N = 341;  // Size of the Universal Function Approximator (i.e. neural network having topology 1:N:1 and range-unrestricted input and output neurons).
+static size_t const N = 85;  // Size of the Universal Function Approximator (i.e. neural network having topology 1:N:1 and range-unrestricted input and output neurons).
 
 Expression activation_0(Expression const& x)
 {
-    // return log(1 + exp(x));
-    // return asinh(x);  // <---- pretty good!
+    return sinh(x);
     // return tanh(x);  // <---- pretty good!
-    return sin(x);  // <---- very good!
 }
 
 Expression activation_1(Expression const& x)
@@ -42,7 +40,6 @@ std::vector<std::pair<double, double>> CreateTrainingSet(int const numSamples = 
 }
 
 Variable x;          // Source value
-Variable y;          // Target value
 
 Variable gain_0[N];  // Middle layer weights
 Variable bias_0[N];  // Middle layer biases
@@ -50,7 +47,8 @@ Variable gain_1[N];  // Output layer weights
 Variable bias_1;     // Output layer bias
 
 Expression func;     // The resultant integral after training
-Expression diff;     // Derivative to be trained
+Expression computation;     // Derivative to be trained
+Expression expectation = (x * x - 1) * (x * x - 1) / (x * x + 1);
 Expression loss;     // Squared difference of the approximation and the expectation (used in training)
 
 Variable rate;       // Descent rate
@@ -62,8 +60,6 @@ std::vector<std::pair<Variable, Expression>> gradients;  // Variables & their au
 int main() try
 {
     cout << std::setprecision(14);
-
-    auto trainingset = CreateTrainingSet(180);  // Vector of {x,y} pairs, where 'y = F(x)', where 'F()' is the function to approximate
 
     for (size_t i = 0; i < N; ++i)
     {
@@ -85,49 +81,60 @@ int main() try
 
     // 2. Derive the UFA so that you can train its differential instead of the function itself
 
-    diff = func.Derive(x);
+    computation = func.Derive(x);
 
     // 3. Construct the cost function:  Given 'x' compute the distance from value of 'differential' to 'y' >squared<
 
-    loss = (diff - y) * (diff - y);
+    loss = (computation - expectation) * (computation - expectation);
 
     // 4. Create the training batch
 
     Expression batch = 0;
 
-    for (auto const& item : trainingset) batch = batch + loss.Bind(x, item.first).Bind(y, item.second);
-    batch = batch / double(trainingset.size());  // To average the cost of all samples
+    for (int i = 0; i <= 180; ++i)
+    {
+        double d = (i - 90.0) / 90.0;
+        batch = batch + loss.Bind(x, d);
+    }
+
+    batch = batch / 181;
 
     // 5. Instrument the training set for gradient descent
 
     for (size_t i = 0; i < N; ++i)
     {
+        cout << ".";
         gradients.emplace_back(gain_0[i], gain_0[i] - rate * batch.Derive(gain_0[i]));
         gradients.emplace_back(bias_0[i], bias_0[i] - rate * batch.Derive(bias_0[i]));
         gradients.emplace_back(gain_1[i], gain_1[i] - rate * batch.Derive(gain_1[i]));
-        cout << ".";
     }
-
-    gradients.emplace_back(bias_1, bias_1 - rate * batch.Derive(bias_1));
     cout << endl;
+    gradients.emplace_back(bias_1, bias_1 - rate * batch.Derive(bias_1));
 
     batch = batch.AtomicBind(gradients);
 
-    // 'batch' needs to be minimized wrt/'rate', then 
+    //
 
     auto slope = batch.Derive(rate);
-    auto converge = rate + slope / -slope.Derive(rate);
+    auto converge = rate - slope / slope.Derive(rate);
 
-    for (int i = 0; i < 256; ++i)
+    for (int i = 0; i < 850; ++i)
     {
-        rate = converge();
+        if (i % 10 == 0) cout << ".";
+        // cout << batch() << ", " << rate() << endl;
+
+        rate = 0; rate = converge();
+        // rate = converge();
+
         AtomicAssign(gradients);
     }
+    cout << endl;
 
-    for (int i = 0; i < 1000; ++i)
+    for (int i = 0; i <= 180; ++i)
     {
-        rate = i / 1000.0;
-        cout << batch() << ", " << slope() << ", " << converge() << endl;
+        double d = (i - 90.0) / 90.0;
+        x = d;
+        cout << x() << ", " << expectation() << ", " << computation() << endl;
     }
 }
 catch (std::exception e)
