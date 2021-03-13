@@ -1,18 +1,13 @@
-# Compiled Object files
-*.obj
-
-# Compiled Dynamic libraries
+# Binaries
 *.dll
-
-# Compiled Static libraries
-*.lib
-
-# Executables
 *.exe
+*.lib
+*.obj
 
 # Other
 .vs
-x64
 Debug
 Release
+x64
+x86
 *.vcxproj.user
