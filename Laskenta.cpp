@@ -4033,7 +4033,7 @@ Expression pow(Expression const& r, Expression const& s)
     return r.pData->pow(s.pData);
 }
 
-void AtomicAssign(std::vector<std::pair<Variable, Expression>> & r)
+void AtomicAssign(Bindings& r)
 {
     auto const N = r.size();
     double* p = new double[N];
@@ -4044,7 +4044,7 @@ void AtomicAssign(std::vector<std::pair<Variable, Expression>> & r)
     delete[] p;
 }
 
-Expression Expression::AtomicBind(std::vector<std::pair<Variable, Expression>> const& r) const
+Expression Expression::AtomicBind(Bindings const& r) const
 {
     std::vector<std::pair<Variable, Expression::data const*>> t;
     for (auto& s : r) t.emplace_back(s.first, s.second.pData);

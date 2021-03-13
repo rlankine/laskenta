@@ -30,6 +30,10 @@ SOFTWARE.
 #include <string>
 #include <vector>
 
+//**********************************************************************************************************************
+
+using Bindings = std::vector<std::pair<struct Variable, struct Expression>>;
+
 /***********************************************************************************************************************
 *** Variable
 ***********************************************************************************************************************/
@@ -109,12 +113,14 @@ struct Expression final
 
     enum class Attribute
     {
-        DEFINED, NONZERO, POSITIVE, NEGATIVE, NONPOSITIVE, NONNEGATIVE, UNITRANGE, ANTIUNITRANGE, OPENUNITRANGE, ANTIOPENUNITRANGE,
-        CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING, BOUNDEDABOVE, BOUNDEDBELOW
+        DEFINED, NONZERO, POSITIVE, NEGATIVE, NONPOSITIVE, NONNEGATIVE,
+        UNITRANGE, ANTIUNITRANGE, OPENUNITRANGE, ANTIOPENUNITRANGE,
+        CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING,
+        BOUNDEDABOVE, BOUNDEDBELOW
     };
 
-    friend void AtomicAssign(std::vector<std::pair<Variable, Expression>>&);
-    Expression AtomicBind(std::vector<std::pair<Variable, Expression>> const&) const;
+    friend void AtomicAssign(Bindings&);
+    Expression AtomicBind(Bindings const&) const;
     Expression Bind(Variable const&, Expression const&) const;
     Expression Derive(Variable const&) const;
     double Evaluate() const;
