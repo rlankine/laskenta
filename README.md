@@ -1,11 +1,11 @@
 # Laskenta Library
 
-Laskenta is a C++ library for multivariable differential calculus.  It is used to construct 'Expression' objects by combining references to 'Variable' objects with other Expressions and numeric literals, using elementary functions and arithmetic operators.  A numeric value can be assigned to each Variable.  An Expression can be evaluated and the result depends on the momentary values of its containing Variables.  When the value of a Variable changes, the change is reflected by subsequent evaluations of any Expression that contains references to it.  An Expression can be derived using any of the Variables it references, where the derivative indicates the ratio of how much the value of the Expression would change when the corresponding variable changes by an infinitesimal amount.  And because the derivative is just another Expression, there is no restriction against deriving it again if needed or further combining it with other Expressions.
+Laskenta is a C++ library for multivariable differential calculus.  It is used to construct 'Expression' objects by combining references to 'Variable' objects with other Expressions and numeric literals, using elementary functions and arithmetic operators.  A numeric value can be assigned to each Variable.  An Expression can be evaluated and the result depends on the momentary values of its contained Variables.  When the value of a Variable changes, the change is reflected by subsequent evaluations of any Expression that contains references to the Variable.  An Expression can be derived using any of the Variables it contains, where the derivative indicates the ratio of how much the value of the Expression would change when the corresponding variable changes by an infinitesimal amount.  And because the derivative is just another Expression, there is no restriction against deriving it again if needed or further combining it with other Expressions.
 
 The Finnish word for 'calculus' is 'laskenta', hence the name of the library.
 
 ## Installing
-Currently there is no automatic install helper, but putting the files in their right places is very straighforward:
+Currently there is no automatic installer, but putting the files in their places is very straighforward:
 
 - `laskenta.cpp` -- Laskenta Library implementation
 - `laskenta.h` -- Laskenta API declarations used by `laskenta.cpp` and your application source file(s)
@@ -14,29 +14,30 @@ Currently there is no automatic install helper, but putting the files in their r
 
 I recommend copying the header files (`laskenta.h` and `tools.h`) either into the directory of your common shared global header files, or into the same directory in which your project resides.  The implementation file (`laskenta.cpp`) should be copied into the same directory with your project source files.  The demo application can serve as a starting point for learning and exploration in which case it should be the main source file in its own project directory.
 
-## Getting started
-TODO
+#### Getting started
+After installing you may want to take a look at the `demo.cpp` application.  It demonstrates typical uses of the Laskenta Library in C++ source code.  A more detailed manual is planned to be written.
 
 ## Applicability
-Calculating differentials of only moderately complex mathematical expressions by hand is very tedious, time consuming, and error prone.  Using a computation tool such as MATLAB or Mathematica for the tedious part still costs time and leaves room for errors when incorporating the resultant formulae into an application program.  One other method known as Automatic Differentiation (a.k.a *autodiff*) is perhaps the most common solution currently because it can compute derivatives automatically when a formula is being computed and hence requires very little effort from the application programmer, but it lacks versatility when it comes to dealing with multiple variables or higher order derivatives.
+Calculating differentials of even just moderately complex mathematical expressions by hand is very tedious, time consuming, and error prone.  Using a tool such as MATLAB or Mathematica for the tedious part still costs time and leaves room for errors when incorporating the resultant formulae into an application program.  One other method known as Automatic Differentiation (a.k.a *autodiff*) is perhaps the most widely used solution because it can compute derivatives automatically alongside the formula being computed and hence requires very little effort from the application programmer.  What Automatic Differentiation still lacks is versatility when it comes to dealing with multiple variables or higher order derivatives.
 
-Laskenta Library can manipulate highly complex mathematical expressions and it does this very efficiently.  While it suits particularly well for rapid prototyping because it can operate regardless of the complexity of the underlying math, it is also more than sufficiently efficient for real time applications.  It performs computations very efficiently because it has a separate optimizing precompilation phase with common subexpression detection and sharing.  Common subexpression sharing not only saves memory, but it facilitates extensive intermediate value caching during expression evaluation.  Even multiple separate expressions operating on the same set of variables are interlaced so that evaluating one expression will often partially precompute intermediate values for the other expressions and communicate them thru value caching.
+Laskenta Library can manipulate highly complex mathematical expressions and it does this very efficiently.  It suits particularly well for rapid prototyping because it is many times quicker than traditional methods in generating correct expressions, but it certainly is not lacking power for actual applications as well.  It performs computations very efficiently because of its extensive common subexpression detection and sharing.  Sharing common subexpression not only saves memory, but more importantly it facilitates intermediate value caching during expression evaluation.  Even multiple separate expressions operating on the same set of variables are interlaced so that a side effect of evaluating one expression is the reduction of time needed to evaluate other expressions because they can now utilize the precomputed intermediate values from cache.
 
-Finally, because of its versatility the Laskenta Library is an enabler to many algorithms that currently reside only on paper.  It can easily and efficiently compute Jacobian vectors and Hessian matrices of multivariable expressions.  It can easily compute second or third or any higher derivative of an expression making it possible to chain various mathematical methods even if they all need derivatives.  For example, consider solving a *differential* equation (=1st order derivative) using *gradient descent* algorithm with a variable descend rate (=2nd order derivatives) finding the descend rate that *minimizes* the value along the current gradient (=3rd order derivative) using *Newton-Raphson* iteration (=4th order derivative).
+*Because of its versatility the Laskenta Library is an enabler to many algorithms that currently appear only on paper.*
 
 #### Some application areas:
 * Mathematics
-  * dynamic modeling and analysis
   * numerical solving and optimization
+  * dynamic system modeling and analysis
+  * efficiently computing Jacobians and Hessians
   * approximating difficult inverse functions
-  * approximating difficult integrals
+  * approximating difficult integrals as Expression objects where the range can be freely varied after construction (not  a plain numerical value based on a fixed range the way trapezoid or Monte Carlo methods would work)
 * Navigation
   * sensor fusion and kalman filter
-  * location using scenery artifact tracking
+  * simultaneous locating and mapping by tracking scenery artifacts
 * Neural networks
-  * using unconventional activation and objective functions
-  * using unconventional network topologies
-  * removes the need to develop explicit back-propagation algorithms
+  * easily experiment with arbitrary activation functions and objective functions
+  * easily implement irregular network topologies
+  * eliminates the need to develop explicit back-propagation algorithms
 * Photogrammetry
   * bundle adjustment
 * Prediction
@@ -55,4 +56,5 @@ TODO
 TODO
 
 ## Links & footnotes
-TODO
+
+If you wish to contact the author you may send email to: laskenta.library@gmail.com

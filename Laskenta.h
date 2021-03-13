@@ -25,12 +25,10 @@ SOFTWARE.
 
 #pragma once
 
-#include <iostream>
+#include <algorithm>
+#include <cmath>
 #include <string>
-
-//**********************************************************************************************************************
-
-#define STACK_LIMIT 10000
+#include <vector>
 
 /***********************************************************************************************************************
 *** Variable
@@ -38,19 +36,18 @@ SOFTWARE.
 
 struct Variable final
 {
-    Variable(char const* = nullptr, double = 0);
+    Variable(double = 0);
     Variable(Variable const&) noexcept;
     ~Variable() noexcept;
 
     Variable& operator=(double);
+    double operator()() const noexcept;
     explicit operator double() const noexcept;
 
+    struct data;
+    size_t id() const;
     std::string Name() const;
     void Name(std::string const&);
-
-    struct data;
-
-    data const* id() const;
 
 private:
     mutable data const* pData;
@@ -72,11 +69,12 @@ struct Expression final
     Expression& operator=(Expression const&) noexcept;
 
     friend Expression abs(Expression const&);
-    friend Expression sign(Expression const&);
     friend Expression sqrt(Expression const&);
     friend Expression cbrt(Expression const&);
     friend Expression exp(Expression const&);
+    friend Expression expm1(Expression const&);
     friend Expression log(Expression const&);
+    friend Expression log1p(Expression const&);
     friend Expression sin(Expression const&);
     friend Expression cos(Expression const&);
     friend Expression tan(Expression const&);
@@ -90,6 +88,11 @@ struct Expression final
     friend Expression acosh(Expression const&);
     friend Expression atanh(Expression const&);
     friend Expression erf(Expression const&);
+    friend Expression erfc(Expression const&);
+
+    friend Expression sgn(Expression const&);
+    friend Expression Li2(Expression const&);
+    friend Expression Spp(Expression const&);
 
     friend Expression operator+(Expression const&);
     friend Expression operator-(Expression const&);
@@ -101,14 +104,18 @@ struct Expression final
 
     friend std::ostream& operator<<(std::ostream&, Expression const&);
 
+    double operator()() const noexcept;
+    explicit operator double() const;
+
     enum class Attribute
     {
-        DEFINED, NONZERO, POSITIVE, NEGATIVE, NONPOSITIVE, NONNEGATIVE,
-        UNITRANGE, ANTIUNITRANGE, OPENUNITRANGE, ANTIOPENUNITRANGE,
-        CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING,
-        BOUNDEDABOVE, BOUNDEDBELOW
+        DEFINED, NONZERO, POSITIVE, NEGATIVE, NONPOSITIVE, NONNEGATIVE, UNITRANGE, ANTIUNITRANGE, OPENUNITRANGE, ANTIOPENUNITRANGE,
+        CONTINUOUS, INCREASING, DECREASING, NONINCREASING, NONDECREASING, BOUNDEDABOVE, BOUNDEDBELOW
     };
 
+    friend void AtomicAssign(std::vector<std::pair<Variable, Expression>>&);
+    Expression AtomicBind(std::vector<std::pair<Variable, Expression>> const&) const;
+    Expression Bind(Variable const&, Expression const&) const;
     Expression Derive(Variable const&) const;
     double Evaluate() const;
     bool Guaranteed(Attribute) const;
@@ -125,32 +132,38 @@ private:
 
 //**********************************************************************************************************************
 
+inline Expression operator+(Variable const& r) { return +Expression(r); }
+inline Expression operator-(Variable const& r) { return -Expression(r); }
+
 inline Expression operator+(double r, Variable const& s) { return Expression(r) + s; }
 inline Expression operator-(double r, Variable const& s) { return Expression(r) - s; }
 inline Expression operator*(double r, Variable const& s) { return Expression(r) * s; }
 inline Expression operator/(double r, Variable const& s) { return Expression(r) / s; }
+inline Expression pow(double r, Variable const& s) { return pow(Expression(r), s); }
 
 inline Expression operator+(Variable const& r, double s) { return Expression(r) + s; }
 inline Expression operator-(Variable const& r, double s) { return Expression(r) - s; }
 inline Expression operator*(Variable const& r, double s) { return Expression(r) * s; }
 inline Expression operator/(Variable const& r, double s) { return Expression(r) / s; }
+inline Expression pow(Variable const& r, double s) { return pow(Expression(r), s); }
 
 inline Expression operator+(Variable const& r, Variable const& s) { return Expression(r) + s; }
 inline Expression operator-(Variable const& r, Variable const& s) { return Expression(r) - s; }
 inline Expression operator*(Variable const& r, Variable const& s) { return Expression(r) * s; }
 inline Expression operator/(Variable const& r, Variable const& s) { return Expression(r) / s; }
-
-inline Expression operator+(Variable const& r) { return +Expression(r); }
-inline Expression operator-(Variable const& r) { return -Expression(r); }
+inline Expression pow(Variable const& r, Variable const& s) { return pow(Expression(r), s); }
 
 //**********************************************************************************************************************
 
-namespace std
-{
-inline double sign(double x)
-{
-    return double(x > 0) - double(x < 0);
-}
-} // end-of-namespace std
+inline Expression exp2(Expression const& x) { return exp(x * log(2)); }
+inline Expression log2(Expression const& x) { return log(x) / log(2); }
+inline Expression log10(Expression const& x) { return log(x) / log(10); }
+
+//**********************************************************************************************************************
+
+inline double sgn(double x) { return double(x > 0) - double(x < 0); }
+
+double Li2(double);  // Polylog2
+double Spp(double);  // Integral of Softplus
 
 //**********************************************************************************************************************

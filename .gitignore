@@ -5,3 +5,9 @@
 *.obj
 
 # Other
+.vs
+Debug
+Release
+x64
+x86
+*.vcxproj.user
