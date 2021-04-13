@@ -230,6 +230,29 @@ protected:
 };
 
 /***********************************************************************************************************************
+*** MultiNode
+***********************************************************************************************************************/
+
+struct MultiNode : public Expr
+{
+    MultiNode(Expr const* p, Expr const* q) : Expr(std::max(p->depth, q->depth) + 1), f_x(p), g_x(q) { }
+
+    virtual ~MultiNode()
+    {
+        Erase(f_x);
+        Erase(g_x);
+    }
+
+    bool is(NodeType, Expr const*) const override final { return false; }
+
+    void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); g_x->purge(); } }
+
+protected:
+    Expr const* const f_x;
+    Expr const* const g_x;
+};
+
+/***********************************************************************************************************************
 *** Nan
 ***********************************************************************************************************************/
 
@@ -1437,6 +1460,95 @@ struct Pow final : public OperatorNode, private ObjectGuard<Pow>
     double value() const override final { return std::pow(f_x->evaluate(), g_x->evaluate()); }
 
     void print(std::ostream&) const override final;
+};
+
+/***********************************************************************************************************************
+*** Sum
+***********************************************************************************************************************/
+
+struct Sum final : public MultiNode, private ObjectGuard<Sum>
+{
+    Sum()
+    {
+        TODO;
+    }
+
+    ~Sum()
+    {
+        TODO;
+    }
+
+    Expr const* add(Expr const*p) const override final
+    {
+        TODO;
+    }
+
+    Expr const* commutative_add(Expr const*) const override final
+    {
+        TODO;
+    }
+
+    Expr const* derivative(Variable const&r) const override final
+    {
+        // D(f(x)+g(x)+h(x)+...+C) = (f'(x) + g'(x) + h'(x) + ...)
+
+        TODO;
+
+        for (auto const& p : positive) /* TODO */ p->derive(r);
+        for (auto const& p : negative) /* TODO */ p->derive(r);
+    }
+
+    double value() const override final
+    {
+        assert(pConst);
+
+        auto result = pConst->evaluate();
+        for (auto const& p : positive) result += p->evaluate();
+        for (auto const& p : negative) result -= p->evaluate();
+        return result;
+    }
+
+private:
+    Expr const* pConst;
+    std::vector<Expr const*> positive;
+    std::vector<Expr const*> negative;
+};
+
+/***********************************************************************************************************************
+*** Prod
+***********************************************************************************************************************/
+
+struct Prod final : public MultiNode, private ObjectGuard<Prod>
+{
+    Expr const* mul(Expr const*) const override final
+    {
+        TODO;
+    }
+
+    Expr const* commutative_mul(Expr const*) const override final
+    {
+        TODO;
+    }
+
+    Expr const* derivative(Variable const&) const override final
+    {
+        // D(C*f(x)*g(x)*h(x)*...) = (C*f(x)*g(x)*h(x)*...) * (f'(x)/f(x) + g'(x)/g(x) + h'(x)/h(x) + ...)
+
+        TODO;
+    }
+
+    double value() const override final
+    {
+        auto result = pConst ? pConst->evaluate() : 1;
+        for (auto const& p : ordinary) result *= p->evaluate();
+        for (auto const& p : inverted) result /= p->evaluate();
+        return result;
+    }
+
+private:
+    Expr const* pConst;
+    std::vector<Expr const*> ordinary;
+    std::vector<Expr const*> inverted;
 };
 
 /***********************************************************************************************************************
