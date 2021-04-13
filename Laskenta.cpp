@@ -4046,13 +4046,14 @@ void AtomicAssign(Bindings& r)
 
 Expression Expression::AtomicBind(Bindings const& r) const
 {
-    std::vector<std::pair<Variable, Expression::data const*>> t;
+    std::vector<std::pair<Variable, Expression::data const*> > t;
     for (auto& s : r) t.emplace_back(s.first, s.second.pData);
     return pData->bind(t);
 }
 
-Expression Expression::Bind(Variable const& r, Expression const& s) const
+Expression Expression::Bind(Variable const& r, double d) const
 {
+    Expression s(d);
     std::vector<std::pair<Variable, Expression::data const*>> t;
     t.emplace_back(r, s.pData);
     return pData->bind(t);
