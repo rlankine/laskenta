@@ -109,7 +109,7 @@ struct Expression final
     friend std::ostream& operator<<(std::ostream&, Expression const&);
 
     double operator()() const noexcept;
-    explicit operator double() const;
+    explicit operator double() const { return operator()(); }
 
     enum class Attribute
     {

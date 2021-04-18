@@ -235,21 +235,14 @@ protected:
 
 struct MultiNode : public Expr
 {
-    MultiNode(Expr const* p, Expr const* q) : Expr(std::max(p->depth, q->depth) + 1), f_x(p), g_x(q) { }
+    MultiNode() = default;
+    MultiNode(MultiNode const&) = delete;
 
-    virtual ~MultiNode()
-    {
-        Erase(f_x);
-        Erase(g_x);
-    }
+    virtual ~MultiNode() = default;
 
-    bool is(NodeType, Expr const*) const override final { return false; }
+    bool is(NodeType, Expr const*) const override final { TODO; }
 
-    void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); g_x->purge(); } }
-
-protected:
-    Expr const* const f_x;
-    Expr const* const g_x;
+    void purge() const override final { TODO; }
 };
 
 /***********************************************************************************************************************
@@ -435,7 +428,7 @@ struct VariableNode final : public Expr, private ObjectGuard<VariableNode>
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
     {
-        for (auto& item : r)
+        for (auto const& item : r)
         {
             if (item.first.id() == x.id())
             {
@@ -1468,14 +1461,8 @@ struct Pow final : public OperatorNode, private ObjectGuard<Pow>
 
 struct Sum final : public MultiNode, private ObjectGuard<Sum>
 {
-    Sum()
-    {
-        TODO;
-    }
-
     ~Sum()
     {
-        TODO;
     }
 
     Expr const* add(Expr const*p) const override final
@@ -4131,11 +4118,6 @@ Expression operator/(Expression const& r, Expression const& s)
 }
 
 double Expression::operator()() const noexcept
-{
-    return pData->evaluate();
-}
-
-Expression::operator double() const
 {
     return pData->evaluate();
 }
