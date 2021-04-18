@@ -25,8 +25,6 @@ SOFTWARE.
 
 #pragma once
 
-#include <algorithm>
-#include <cmath>
 #include <string>
 #include <vector>
 
@@ -121,7 +119,7 @@ struct Expression final
 
     friend void AtomicAssign(Bindings&);
     Expression AtomicBind(Bindings const&) const;
-    Expression Bind(Variable const&, Expression const&) const;
+    Expression Bind(Variable const&, double) const;
     Expression Derive(Variable const&) const;
     double Evaluate() const;
     bool Guaranteed(Attribute) const;
