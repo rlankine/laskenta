@@ -9,8 +9,141 @@ using std::endl;
 
 //**********************************************************************************************************************
 
+typedef bool (*function)(double &);
+
+struct Sequence
+{
+    Sequence() { }
+
+    double operator()(double d) const { for (auto const& function : sequence) d = function(d); }
+
+private:
+    std::vector<double(*)(double)> sequence;
+};
+
+//**********************************************************************************************************************
+
+Expression test()
+{
+    Variable source[10];
+    Expression middle[10];
+    Expression output[10];
+
+    Expression target[10];
+
+    Variable weight1[10][10];
+    Variable weight2[10][10];
+
+    Expression result = 0;
+
+    for (int i = 0; i < 10; ++i)
+    {
+        middle[i] = 0;
+
+        for (int j = 0; j < 10; ++j)
+        {
+            middle[i] = middle[i] + source[j] * weight1[i][j];
+        }
+
+        middle[i] = log(1 + exp(middle[i]));
+    }
+
+    for (int i = 0; i < 10; ++i)
+    {
+        output[i] = 1;
+
+        for (int j = 0; j < 10; ++j)
+        {
+            output[i] = output[i] * (middle[j] * weight2[i][j]);
+            // target[i] = output[i];
+        }
+
+        output[i] = log(1 + exp(output[i]));
+    }
+
+    for (int i = 0; i < 10; ++i)
+    {
+        result = result + output[i] * output[i];
+    }
+
+    return result;
+}
+
+
+//**********************************************************************************************************************
+
+Expression simple_test()
+{
+#if 0
+    Variable a;
+    Variable b;
+    Variable c;
+    Variable d;
+    Variable x;
+
+    a.Name("a");
+    b.Name("b");
+    c.Name("c");
+    d.Name("d");
+    x.Name("x");
+
+    Expression e;// = 1;
+
+    e = exp(foo("F"))*x;
+
+#endif
+
+#if 1
+
+    cout << __LINE__ << endl;
+
+    Expression e;
+    Variable x;
+
+    cout << __LINE__ << endl;
+
+    cout << (foo("A")) << endl;
+    cout << __LINE__ << endl;
+    cout << (foo("A") * foo("B")) << endl;
+    cout << __LINE__ << endl;
+    cout << (foo("A") * foo("B")).Derive(x) << endl;
+    cout << __LINE__ << endl;
+    cout << (foo("A") * foo("B") * foo("C")).Derive(x) << endl;
+    cout << (foo("A") * foo("B") * foo("C") * foo("D")).Derive(x) << endl;
+    cout << (foo("A") * foo("B") * foo("C") * foo("D") * foo("E")).Derive(x) << endl;
+    cout << (foo("A") * foo("B") * foo("C") * foo("D") * foo("E") * foo("F")).Derive(x) << endl;
+    cout << (foo("A") * foo("B") * foo("C") * foo("D") * foo("E") * foo("F") * foo("G")).Derive(x) << endl;
+    cout << (foo("A") * foo("B") * foo("C") * foo("D") * foo("E") * foo("F") * foo("G") * foo("H")).Derive(x) << endl;
+    cout << "----" << endl;
+    cout << (foo("A") * foo("B")).Derive(x) << endl;
+    cout << (foo("A") * foo("B")).Derive(x).Derive(x) << endl;
+    cout << (foo("A") * foo("B")).Derive(x).Derive(x).Derive(x) << endl;
+    cout << (foo("A") * foo("B")).Derive(x).Derive(x).Derive(x).Derive(x) << endl;
+    cout << "----" << endl;
+
+
+#else
+
+    Variable a;
+    Expression e;
+    e = 2 * a;
+    cout << e << endl;
+    e * e;
+
+#endif
+    return e;
+}
+
+//**********************************************************************************************************************
+
 int main() try
 {
+    cout << __LINE__ << endl;
+    simple_test(); // cout << simple_test() << endl << endl;
+    cout << __LINE__ << endl;
+
+    return EXIT_SUCCESS;
+
     Variable a;
     Variable b;
     Variable c;

@@ -2,7 +2,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Risto Lankinen
+Copyright (c) 2021 Risto Lankinen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -95,6 +95,7 @@ struct Expression final
     friend Expression sgn(Expression const&);
     friend Expression Li2(Expression const&);
     friend Expression Spp(Expression const&);
+    friend Expression foo(std::string const&);
 
     friend Expression operator+(Expression const&);
     friend Expression operator-(Expression const&);
@@ -119,7 +120,6 @@ struct Expression final
 
     friend void AtomicAssign(Bindings&);
     Expression AtomicBind(Bindings const&) const;
-    Expression Bind(Variable const&, double) const;
     Expression Derive(Variable const&) const;
     double Evaluate() const;
     bool Guaranteed(Attribute) const;
@@ -166,6 +166,9 @@ inline Expression log10(Expression const& x) { return log(x) / log(10); }
 //**********************************************************************************************************************
 
 inline double sgn(double x) { return double(x > 0) - double(x < 0); }
+Expression foo(std::string const&);
+
+//**********************************************************************************************************************
 
 double Li2(double);  // Polylog2
 double Spp(double);  // Integral of Softplus

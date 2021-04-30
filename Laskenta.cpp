@@ -2,7 +2,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Risto Lankinen
+Copyright (c) 2021 Risto Lankinen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,11 +24,16 @@ SOFTWARE.
 */
 
 #include "Laskenta.h"
-// #define VERBOSE
+#define VERBOSE
 #include "Tools.h"
+#define MULTINODE
 
 #include <map>
 #include <unordered_map>
+
+#include <iostream>
+using std::cout;
+using std::endl;
 
 //**********************************************************************************************************************
 
@@ -49,6 +54,7 @@ struct Expression::data : public Shared
 
     static Expr const* constant(double);
     static Expr const* variable(Variable const&);
+    static Expr const* foo(std::string const&);
 
     // Functions
 
@@ -89,14 +95,13 @@ struct Expression::data : public Shared
     // Operators
 
     virtual Expr const* add(Expr const*) const;
-    virtual Expr const* commutative_add(Expr const*) const;
     virtual Expr const* mul(Expr const*) const;
-    virtual Expr const* commutative_mul(Expr const*) const;
     virtual Expr const* pow(Expr const*) const;
 
     // Evaluation and derivation
 
-    virtual Expr const* bind(std::vector<std::pair<Variable, Expr const *>> const&) const = 0;
+    virtual Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const&) const = 0;
+    virtual Expr const* dxdivx(Variable const&) const;
 
     Expr const* derive(Variable const& r) const { return Clone(cachedNode ? cachedNode : cachedNode = derivative(r)); }
     double evaluate() const { if (cleanLevel != dirtyLevel) { valueCache = value(); cleanLevel = dirtyLevel; } return valueCache; }
@@ -108,14 +113,12 @@ struct Expression::data : public Shared
     enum class NodeType
     {
         ABS, SGN, SQRT, CBRT, EXP, EXPM1, LOG, LOG1P, SIN, COS, TAN, SEC, ASIN, ACOS, ATAN, SINH, COSH, TANH, SECH, ASINH, ACOSH, ATANH, ERF, ERFC,
-        INVERT, NEGATE, SOFTPP, SPENCE, SQUARE, XCONIC, YCONIC, ZCONIC, CONSTANT, VARIABLE, ADD, MUL, POW
+        INVERT, NEGATE, SOFTPP, SPENCE, SQUARE, XCONIC, YCONIC, ZCONIC, CONSTANT, VARIABLE, ADD, MUL, POW, SUM, PROD
     };
 
+    virtual bool has(Expr const*) const = 0;
     virtual bool is(NodeType) const = 0;
     virtual bool is(NodeType, Expr const*) const = 0;
-
-    virtual bool easyInvert() const { return false; }
-    virtual bool easyNegate() const { return false; }
 
     // Cache management
 
@@ -188,6 +191,7 @@ struct FunctionNode : public Expr
         f_x->functionNode[fn] = this;
     }
 
+    bool has(Expr const* p) const override final { return this == p || f_x->has(p); }
     bool is(NodeType t) const override final { return t == fn; }
     bool is(NodeType t, Expr const* p) const override final { return t == fn && p == f_x; }
 
@@ -215,6 +219,7 @@ struct OperatorNode : public Expr
 {
     OperatorNode(Expr const* p, Expr const* q) : Expr(std::max(p->depth, q->depth) + 1), f_x(p), g_x(q) { }
 
+    bool has(Expr const* p) const override final { return this == p || f_x->has(p) || g_x->has(p); }
     bool is(NodeType, Expr const*) const override final { return false; }
 
     void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); g_x->purge(); } }
@@ -236,15 +241,61 @@ protected:
 
 struct MultiNode : public Expr
 {
-    MultiNode() = default;
-    MultiNode(MultiNode const&) = delete;
+    MultiNode(double identity) : Expr(1), n(identity) { }
 
-    virtual ~MultiNode() = default;
+    bool is(NodeType, Expr const*) const override final { return false; }
 
-    bool is(NodeType, Expr const*) const override final { TODO; }
+    void purge() const override final { if (cachedNode) { Expr::purge(); for (Expr const* f_x : node) f_x->purge(); } }
 
-    void purge() const override final { TODO; }
+protected:
+    virtual ~MultiNode()
+    {
+        for (Expr const* f_x : node) Erase(f_x);
+    }
+
+    mutable double n;
+    mutable std::vector<Expr const*> node;
 };
+
+/***********************************************************************************************************************
+*** Foo
+***********************************************************************************************************************/
+
+struct Foo final : public Expr
+{
+    Foo(std::string const& r, int n) : Expr(0), name(r), order(n)
+    {
+    }
+
+    ~Foo()
+    {
+    }
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const&) const override final { return Clone(this); }
+
+    Expr const* derivative(Variable const&) const override final { return new Foo(name, order + 1); }
+    double value() const override final { return nan(__FUNCTION__); }
+
+    bool guaranteed(Attr) const override final { return false; }
+    bool has(Expr const* p) const override final { return this == p; }
+    bool is(NodeType) const override final { return false; }
+    bool is(NodeType, Expr const*) const override final { return false; }
+
+    void print(std::ostream& r) const override final { r << name; for (int i = 0; i < order; ++i) r << "'"; r << "()"; }
+
+    void* operator new(size_t n) { return ::operator new(n); }
+
+private:
+    std::string name;
+    int order;
+};
+
+//----------------------------------------------------------------------------------------------------------------------
+
+Expr const* Expression::data::foo(std::string const &r)
+{
+    return new Foo(r, 0);
+}
 
 /***********************************************************************************************************************
 *** Nan
@@ -289,15 +340,14 @@ struct Nan final : public Expr
     Expr const* zconic() const override final { return Clone(this); }
 
     Expr const* add(Expr const*) const override final { return Clone(this); }
-    Expr const* commutative_add(Expr const*) const override final { return Clone(this); }
     Expr const* mul(Expr const*) const override final { return Clone(this); }
-    Expr const* commutative_mul(Expr const*) const override final { return Clone(this); }
     Expr const* pow(Expr const*) const override final { return Clone(this); }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const&) const override final { return Clone(this); }
+    Expr const* dxdivx(Variable const&) const override final { return Clone(this); }
 
     bool guaranteed(Attr) const override final { return false; }
-
+    bool has(Expr const* p) const override final { return this == p; }
     bool is(NodeType) const override final { return false; }
     bool is(NodeType, Expr const*) const override final { return false; }
 
@@ -359,20 +409,16 @@ struct ConstantNode final : public Expr, private ObjectGuard<ConstantNode>
     Expr const* zconic() const override final { return constant(std::sqrt(1 - n * n)); }
 
     Expr const* add(Expr const*) const override final;
-    Expr const* commutative_add(Expr const*) const override final;
     Expr const* mul(Expr const*) const override final;
-    Expr const* commutative_mul(Expr const*) const override final;
     Expr const* pow(Expr const*) const override final;
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const&) const override final { return Clone(this); }
+    Expr const* dxdivx(Variable const&) const override final { return Clone(literal0); }
 
     bool guaranteed(Attr) const override final;
-
+    bool has(Expr const* p) const override final { return this == p; }
     bool is(NodeType t) const override final { return t == NodeType::CONSTANT; }
     bool is(NodeType t, Expr const* p) const override final { return t == NodeType::CONSTANT && p == this; }
-
-    bool easyInvert() const override final { return n != 0; }
-    bool easyNegate() const override final { return true; }
 
     Expr const* derivative(Variable const&) const override final;
     double value() const override final { return n; }
@@ -421,26 +467,16 @@ struct VariableNode final : public Expr, private ObjectGuard<VariableNode>
         variableNode[x.id()] = this;
     }
 
-    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
-    {
-        for (auto const& item : r)
-        {
-            if (item.first.id() == x.id())
-            {
-                return Clone(item.second);
-            }
-        }
-
-        return Clone(this);
-    }
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const&) const override final;
+    Expr const* dxdivx(Variable const& r) const override final { return r.id() == x.id() ? invert() : Clone(literal0); }
 
     bool guaranteed(Attr) const override final;
-
+    bool has(Expr const* p) const override final { return this == p; }
     bool is(NodeType t) const override final { return t == NodeType::VARIABLE; }
     bool is(NodeType t, Expr const* p) const override final { return t == NodeType::VARIABLE && p == this; }
 
     Expr const* derivative(Variable const&) const override final;
-    double value() const override final { return double(x); }
+    double value() const override final { return x(); }
 
     void print(std::ostream&) const override final;
 
@@ -490,6 +526,7 @@ struct Abs final : public FunctionNode, private ObjectGuard<Abs>
     Expr const* zconic() const override final { return f_x->zconic(); }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->abs(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const&) const override final;
 
     bool guaranteed(Attr) const override final;
 
@@ -512,6 +549,7 @@ struct Sgn final : public FunctionNode, private ObjectGuard<Sgn>
     Expr const* square() const override final { auto step0 = f_x->square(); auto step1 = step0->sgn(); Erase(step0); return step1; }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sgn(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const&) const override final { return Clone(literal0); }
 
     bool guaranteed(Attr) const override final;
 
@@ -534,6 +572,7 @@ struct Sqrt final : public FunctionNode, private ObjectGuard<Sqrt>
     Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal2Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sqrt(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const&) const override final;
 
     bool guaranteed(Attr) const override final;
 
@@ -555,6 +594,7 @@ struct Cbrt final : public FunctionNode, private ObjectGuard<Cbrt>
     Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal3Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->cbrt(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const&) const override final;
 
     bool guaranteed(Attr) const override final;
 
@@ -578,6 +618,7 @@ struct Exp final : public FunctionNode, private ObjectGuard<Exp>
     Expr const* pow(Expr const* p) const override final { auto step0 = f_x->mul(p); auto step1 = step0->exp();  Erase(step0); return step1; }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->exp(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const&) const override final;
 
     bool guaranteed(Attr) const override final;
 
@@ -596,6 +637,7 @@ struct ExpM1 final : public FunctionNode, private ObjectGuard<ExpM1>
     ExpM1(Expr const* p) : FunctionNode(p, NodeType::EXPM1) { }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->expm1(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const& r) const override final { return Expression::data::dxdivx(r); }
 
     bool guaranteed(Attr) const override final;
 
@@ -616,6 +658,7 @@ struct Log final : public FunctionNode, private ObjectGuard<Log>
     Expr const* exp() const override final { return Clone(f_x); }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->log(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const& r) const override final { return FunctionNode::dxdivx(r); }
 
     bool guaranteed(Attr) const override final;
 
@@ -634,6 +677,7 @@ struct Log1P final : public FunctionNode, private ObjectGuard<Log1P>
     Log1P(Expr const* p) : FunctionNode(p, NodeType::LOG1P) { }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->log1p(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const& r) const override final { return FunctionNode::dxdivx(r); }
 
     bool guaranteed(Attr) const override final;
 
@@ -654,6 +698,7 @@ struct Sin final : public FunctionNode, private ObjectGuard<Sin>
     Expr const* zconic() const override final { auto step0 = f_x->cos(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sin(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const&) const override final;
 
     bool guaranteed(Attr) const override final;
 
@@ -675,6 +720,7 @@ struct Cos final : public FunctionNode, private ObjectGuard<Cos>
     Expr const* zconic() const override final { auto step0 = f_x->sin(); auto step1 = step0->abs(); Erase(step0); return step1; }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->cos(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const&) const override final;
 
     bool guaranteed(Attr) const override final;
 
@@ -693,6 +739,7 @@ struct Tan final : public FunctionNode, private ObjectGuard<Tan>
     Tan(Expr const* p) : FunctionNode(p, NodeType::TAN) { }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->tan(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const&) const override final;
 
     bool guaranteed(Attr) const override final;
 
@@ -736,6 +783,7 @@ struct ASin final : public FunctionNode, private ObjectGuard<ASin>
     Expr const* sec() const override final { auto step0 = f_x->zconic(); auto step1 = step0->invert(); Erase(step0); return step1; }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->asin(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const& r) const override final { return FunctionNode::dxdivx(r); }
 
     bool guaranteed(Attr) const override final;
 
@@ -759,6 +807,7 @@ struct ACos final : public FunctionNode, private ObjectGuard<ACos>
     Expr const* sec() const override final { return f_x->invert(); }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->acos(); Erase(step0); return step1; }
+    Expr const* dxdivx(Variable const& r) const override final { return FunctionNode::dxdivx(r); }
 
     bool guaranteed(Attr) const override final;
 
@@ -1001,13 +1050,9 @@ struct Invert final : public FunctionNode, private ObjectGuard<Invert>
     Expr const* invert() const override final { return Clone(f_x); }
     Expr const* square() const override final { auto step0 = f_x->square(); auto step1 = step0->invert(); Erase(step0); return step1; }
 
-    Expr const* mul(Expr const*) const override final;
     Expr const* pow(Expr const* p) const override final { auto step0 = f_x->pow(p); auto step1 = step0->invert(); Erase(step0); return step1; }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->invert(); Erase(step0); return step1; }
-
-    bool easyInvert() const override final { return true; }
-    bool easyNegate() const override final { return f_x->easyNegate(); }
 
     bool guaranteed(Attr) const override final;
 
@@ -1049,13 +1094,7 @@ struct Negate final : public FunctionNode, private ObjectGuard<Negate>
     Expr const* yconic() const override final { return f_x->yconic(); }
     Expr const* zconic() const override final { return f_x->zconic(); }
 
-    Expr const* add(Expr const*) const override final;
-    Expr const* mul(Expr const*) const override final;
-
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->negate(); Erase(step0); return step1; }
-
-    bool easyInvert() const override final { return f_x->easyInvert(); }
-    bool easyNegate() const override final { return true; }
 
     bool guaranteed(Attr) const override final;
 
@@ -1113,7 +1152,6 @@ struct Square final : public FunctionNode, private ObjectGuard<Square>
     Expr const* sqrt() const override final { return f_x->abs(); }
 
     Expr const* mul(Expr const*) const override final;
-    Expr const* commutative_mul(Expr const*) const override final;
     Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal2); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->square(); Erase(step0); return step1; }
@@ -1322,21 +1360,9 @@ struct Add final : public OperatorNode, private ObjectGuard<Add>
     double value() const override final { return f_x->evaluate() + g_x->evaluate(); }
 
     Expr const* add(Expr const*) const override final;
-    Expr const* commutative_add(Expr const*) const override final;
     Expr const* mul(Expr const*) const override final;
-    Expr const* commutative_mul(Expr const*) const override final;
 
-    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
-    {
-        auto step0 = f_x->bind(r);
-        auto step1 = g_x->bind(r);
-        auto step2 = step0->add(step1);
-
-        Erase(step0);
-        Erase(step1);
-
-        return step2;
-    }
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final;
 
     bool is(NodeType t) const override final { return t == NodeType::ADD; }
 
@@ -1373,19 +1399,8 @@ struct Mul final : public OperatorNode, private ObjectGuard<Mul>
     }
 
     Expr const* mul(Expr const*) const override final;
-    Expr const* commutative_mul(Expr const*) const override final;
 
-    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
-    {
-        auto step0 = f_x->bind(r);
-        auto step1 = g_x->bind(r);
-        auto step2 = step0->mul(step1);
-
-        Erase(step0);
-        Erase(step1);
-
-        return step2;
-    }
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final;
 
     bool is(NodeType t) const override final { return t == NodeType::MUL; }
 
@@ -1426,20 +1441,9 @@ struct Pow final : public OperatorNode, private ObjectGuard<Pow>
     Expr const* square() const override final { auto step0 = g_x->mul(literal2); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
     Expr const* mul(Expr const*) const override final;
-    Expr const* commutative_mul(Expr const*) const override final;
     Expr const* pow(Expr const* p) const override final { auto step0 = g_x->mul(p); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
 
-    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
-    {
-        auto step0 = f_x->bind(r);
-        auto step1 = g_x->bind(r);
-        auto step2 = step0->pow(step1);
-
-        Erase(step0);
-        Erase(step1);
-
-        return step2;
-    }
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final;
 
     bool is(NodeType t) const override final { return t == NodeType::POW; }
 
@@ -1465,44 +1469,29 @@ private:
 
 struct Sum final : public MultiNode, private ObjectGuard<Sum>
 {
+    Sum(Expr const *p, Expr const *q) : MultiNode(0)
+    {
+        node.emplace_back(p);
+        node.emplace_back(q);
+    }
+
+    Expr const* add(Expr const* p) const override final;
+
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final;
+
+    bool guaranteed(Attr) const override final;
+    bool has(Expr const* p) const override final { if (this == p) return true; for (auto const& f_x : node) if (f_x->has(p)) return true; return false; }
+    bool is(NodeType t) const override final { return t == NodeType::SUM; }
+
+    Expr const* derivative(Variable const&) const override final;
+    double value() const override final;
+
+    void print(std::ostream& out) const override final;
+
+private:
     ~Sum()
     {
     }
-
-    Expr const* add(Expr const*p) const override final
-    {
-        TODO;
-    }
-
-    Expr const* commutative_add(Expr const*) const override final
-    {
-        TODO;
-    }
-
-    Expr const* derivative(Variable const&r) const override final
-    {
-        // D(f(x)+g(x)+h(x)+...+C) = (f'(x) + g'(x) + h'(x) + ...)
-
-        TODO;
-
-        for (auto const& p : positive) /* TODO */ p->derive(r);
-        for (auto const& p : negative) /* TODO */ p->derive(r);
-    }
-
-    double value() const override final
-    {
-        assert(pConst);
-
-        auto result = pConst->evaluate();
-        for (auto const& p : positive) result += p->evaluate();
-        for (auto const& p : negative) result -= p->evaluate();
-        return result;
-    }
-
-private:
-    Expr const* pConst;
-    std::vector<Expr const*> positive;
-    std::vector<Expr const*> negative;
 };
 
 /***********************************************************************************************************************
@@ -1511,35 +1500,28 @@ private:
 
 struct Prod final : public MultiNode, private ObjectGuard<Prod>
 {
-    Expr const* mul(Expr const*) const override final
+    Prod(Expr const *p, Expr const *q) : MultiNode(1)
     {
-        TODO;
+        node.emplace_back(p);
+        node.emplace_back(q);
     }
 
-    Expr const* commutative_mul(Expr const*) const override final
-    {
-        TODO;
-    }
+    Expr const* mul(Expr const* p) const override final;
 
-    Expr const* derivative(Variable const&) const override final
-    {
-        // D(C*f(x)*g(x)*h(x)*...) = (C*f(x)*g(x)*h(x)*...) * (f'(x)/f(x) + g'(x)/g(x) + h'(x)/h(x) + ...)
+    Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final;
 
-        TODO;
-    }
+    bool guaranteed(Attr) const override final;
+    bool has(Expr const* p) const override final { if (this == p) return true; for (auto const& f_x : node) if (f_x->has(p)) return true; return false; }
+    bool is(NodeType t) const override final { return t == NodeType::PROD; }
 
-    double value() const override final
-    {
-        auto result = pConst ? pConst->evaluate() : 1;
-        for (auto const& p : ordinary) result *= p->evaluate();
-        for (auto const& p : inverted) result /= p->evaluate();
-        return result;
-    }
+    Expr const* derivative(Variable const&) const override final;
+
+    double value() const override final;
+
+    void print(std::ostream& out) const override final;
 
 private:
-    Expr const* pConst;
-    std::vector<Expr const*> ordinary;
-    std::vector<Expr const*> inverted;
+    ~Prod() { }
 };
 
 /***********************************************************************************************************************
@@ -1568,16 +1550,22 @@ Expr const* Expression::data::sgn() const
 *** add()
 ***********************************************************************************************************************/
 
+#if defined(MULTINODE)
+
 Expr const* Expression::data::add(Expr const* p) const
 {
-    return p->commutative_add(this);
+    return new Sum(this, p);
 }
 
-Expr const* Expression::data::commutative_add(Expr const* p) const
+#else // MULTINODE
+
+Expr const* Expression::data::add(Expr const* p) const
 {
     auto node = addNode.find(p);
-    return node != addNode.end() ? Clone(node->second) : new Add(Clone(p), Clone(this));
+    return node != addNode.end() ? Clone(node->second) : new Add(Clone(this), Clone(p));
 }
+
+#endif // MULTINODE
 
 Expr const* ConstantNode::add(Expr const* p) const
 {
@@ -1586,81 +1574,38 @@ Expr const* ConstantNode::add(Expr const* p) const
     return Expr::add(p);
 }
 
-Expr const* ConstantNode::commutative_add(Expr const* p) const
+Expr const* Sum::add(Expr const* p) const
 {
-    if (p->is(NodeType::CONSTANT)) return constant(n + p->evaluate());
-    if (n == 0) return Clone(p);
-    return Expr::commutative_add(p);
-}
+    if (IsShared() || p->has(this)) return Expression::data::add(p);
 
-Expr const* Negate::add(Expr const* p) const
-{
-    return Expr::add(p);
-}
+    if (p->is(NodeType::CONSTANT)) n = n + p->evaluate();
+    else node.emplace_back(Clone(p));
 
-Expr const* Add::add(Expr const* p) const
-{
-    if (depth > STACK_LIMIT)
-    {
-        if (f_x->depth < g_x->depth)
-        {
-            auto step0 = f_x->add(p);
-            auto step1 = g_x->add(step0);
-            Erase(step0);
-            return step1;
-        }
-
-        if (f_x->depth > g_x->depth)
-        {
-            auto step0 = g_x->add(p);
-            auto step1 = f_x->add(step0);
-            Erase(step0);
-            return step1;
-        }
-    }
-
-    return Expr::add(p);
-}
-
-Expr const* Add::commutative_add(Expr const* p) const
-{
-    if (depth > STACK_LIMIT)
-    {
-        if (f_x->depth < g_x->depth)
-        {
-            auto step0 = f_x->commutative_add(p);
-            auto step1 = g_x->commutative_add(step0);
-            Erase(step0);
-            return step1;
-        }
-
-        if (f_x->depth > g_x->depth)
-        {
-            auto step0 = g_x->commutative_add(p);
-            auto step1 = f_x->commutative_add(step0);
-            Erase(step0);
-            return step1;
-        }
-    }
-
-    return Expr::commutative_add(p);
+    return Clone(this);
 }
 
 /***********************************************************************************************************************
 *** mul()
 ***********************************************************************************************************************/
 
+#if defined(MULTINODE)
+
+Expr const* Expression::data::mul(Expr const* p) const
+{
+    return new Prod(this,p);
+}
+
+#else // MULTINODE
+
 Expr const* Expression::data::mul(Expr const* p) const
 {
     if (p == this) return square();
-    return p->commutative_mul(this);
-}
 
-Expr const* Expression::data::commutative_mul(Expr const* p) const
-{
     auto node = mulNode.find(p);
     return node != mulNode.end() ? Clone(node->second) : new Mul(Clone(p), Clone(this));
 }
+
+#endif // MULTINODE
 
 Expr const* ConstantNode::mul(Expr const* p) const
 {
@@ -1671,136 +1616,10 @@ Expr const* ConstantNode::mul(Expr const* p) const
     return Expr::mul(p);
 }
 
-Expr const* ConstantNode::commutative_mul(Expr const* p) const
-{
-    if (p->is(NodeType::CONSTANT)) return constant(n * p->evaluate());
-    if (n == 0) return Clone(this);
-    if (n == 1) return Clone(p);
-    if (n == -1) return p->negate();
-    return Expr::commutative_mul(p);
-}
-
-Expr const* Invert::mul(Expr const* p) const
-{
-    if (p->easyInvert())  // 1/x * 1/p  ---->  1/(x * p)
-    {
-        auto step0 = p->invert();
-        auto step1 = f_x->mul(step0);
-        auto step2 = step1->invert();
-        Erase(step0);
-        Erase(step1);
-        return step2;
-    }
-
-    return Expr::mul(p);
-}
-
-Expr const* Negate::mul(Expr const* p) const
-{
-    if (p->easyNegate())  // -x * -p  ---->  x * p
-    {
-        auto step0 = p->negate();
-        auto step1 = f_x->mul(step0);
-        Erase(step0);
-        return step1;
-    }
-    else  // -x * p  ---->  -(x * p)
-    {
-        auto step0 = f_x->mul(p);
-        auto step1 = step0->negate();
-        Erase(step0);
-        return step1;
-    }
-}
-
 Expr const* Square::mul(Expr const* p) const
 {
     if (f_x == p) return f_x->pow(literal3);
     return Expr::mul(p);
-}
-
-Expr const* Square::commutative_mul(Expr const* p) const
-{
-    if(f_x == p) return f_x->pow(literal3);
-    return Expr::commutative_mul(p);
-}
-
-Expr const* Add::mul(Expr const* p) const
-{
-    if (depth > STACK_LIMIT)
-    {
-        auto step0 = f_x->mul(p);
-        auto step1 = g_x->mul(p);
-        auto step2 = step0->add(step1);
-        Erase(step0);
-        Erase(step1);
-        return step2;
-    }
-
-    return Expr::mul(p);
-}
-
-Expr const* Add::commutative_mul(Expr const* p) const
-{
-    if (depth > STACK_LIMIT)
-    {
-        auto step0 = p->commutative_mul(f_x);
-        auto step1 = p->commutative_mul(g_x);
-        auto step2 = step0->add(step1);
-        Erase(step0);
-        Erase(step1);
-        return step2;
-    }
-
-    return Expr::commutative_mul(p);
-}
-
-Expr const* Mul::mul(Expr const* p) const
-{
-    if (depth > STACK_LIMIT)
-    {
-        if (f_x->depth < g_x->depth)
-        {
-            auto step0 = f_x->mul(p);
-            auto step1 = g_x->mul(step0);
-            Erase(step0);
-            return step1;
-        }
-
-        if (f_x->depth > g_x->depth)
-        {
-            auto step0 = g_x->mul(p);
-            auto step1 = f_x->mul(step0);
-            Erase(step0);
-            return step1;
-        }
-    }
-
-    return Expr::mul(p);
-}
-
-Expr const* Mul::commutative_mul(Expr const* p) const
-{
-    if (depth > STACK_LIMIT)
-    {
-        if (f_x->depth < g_x->depth)
-        {
-            auto step0 = f_x->commutative_mul(p);
-            auto step1 = g_x->commutative_mul(step0);
-            Erase(step0);
-            return step1;
-        }
-
-        if (f_x->depth > g_x->depth)
-        {
-            auto step0 = g_x->commutative_mul(p);
-            auto step1 = f_x->commutative_mul(step0);
-            Erase(step0);
-            return step1;
-        }
-    }
-
-    return Expr::commutative_mul(p);
 }
 
 Expr const* Pow::mul(Expr const* p) const
@@ -1818,19 +1637,18 @@ Expr const* Pow::mul(Expr const* p) const
     return Expr::mul(p);
 }
 
-Expr const* Pow::commutative_mul(Expr const* p) const
+Expr const* Prod::mul(Expr const* p) const
 {
-    if (f_x == p)
-    {
-        auto step0 = g_x->add(literal1);
-        auto step1 = f_x->pow(step0);
+    cout << __LINE__ << endl;
 
-        Erase(step0);
+    if (IsShared() || p->has(this)) return Expression::data::mul(p);
+    cout << __LINE__ << endl;
 
-        return step1;
-    }
+    if (p->is(NodeType::CONSTANT)) n = n * p->evaluate();  // TODO: What if n == 0 ?
+    else node.emplace_back(Clone(p));
+    cout << __LINE__ << endl;
 
-    return Expr::commutative_mul(p);
+    return Clone(this);
 }
 
 /***********************************************************************************************************************
@@ -1864,6 +1682,91 @@ Expr const* ConstantNode::pow(Expr const* p) const
 }
 
 /***********************************************************************************************************************
+*** bind()
+***********************************************************************************************************************/
+
+Expr const* VariableNode::bind(std::vector<std::pair<Variable, Expr const*>> const& r) const
+{
+    for (auto const& item : r)
+    {
+        if (item.first.id() == x.id())
+        {
+            return Clone(item.second);
+        }
+    }
+
+    return Clone(this);
+}
+
+Expr const* Add::bind(std::vector<std::pair<Variable, Expr const*>> const& r) const
+{
+    auto step0 = f_x->bind(r);
+    auto step1 = g_x->bind(r);
+    auto step2 = step0->add(step1);
+
+    Erase(step0);
+    Erase(step1);
+
+    return step2;
+}
+
+Expr const* Mul::bind(std::vector<std::pair<Variable, Expr const*>> const& r) const
+{
+    auto step0 = f_x->bind(r);
+    auto step1 = g_x->bind(r);
+    auto step2 = step0->mul(step1);
+
+    Erase(step0);
+    Erase(step1);
+
+    return step2;
+}
+
+Expr const* Pow::bind(std::vector<std::pair<Variable, Expr const*>> const& r) const
+{
+    auto step0 = f_x->bind(r);
+    auto step1 = g_x->bind(r);
+    auto step2 = step0->pow(step1);
+
+    Erase(step0);
+    Erase(step1);
+
+    return step2;
+}
+
+Expr const* Sum::bind(std::vector<std::pair<Variable, Expr const*>> const& r) const
+{
+    auto step0 = constant(n);
+
+    for (auto const& f_x : node)
+    {
+        auto step1 = f_x->bind(r);
+        auto step2 = step0->add(step1);
+        Erase(step0);
+        Erase(step1);
+        step0 = step2;
+    }
+
+    return step0;
+}
+
+Expr const* Prod::bind(std::vector<std::pair<Variable, Expr const*>> const& r) const
+{
+    auto step0 = constant(n);
+
+    for (auto const& f_x : node)
+    {
+        auto step1 = f_x->bind(r);
+        auto step2 = step0->mul(step1);
+        Erase(step0);
+        Erase(step1);
+        step0 = step2;
+    }
+
+    return step0;
+}
+
+/***********************************************************************************************************************
 *** derivative()
 ***********************************************************************************************************************/
 
@@ -1878,7 +1781,7 @@ Expr const* VariableNode::derivative(Variable const& r) const
 {
     // D(x) = 1 , D(?) = 0
 
-    return Clone(r.id() == x.id() ? literal1 : literal0);
+    return r.id() == x.id() ? Clone(literal1) : Clone(literal0);
 }
 
 Expr const* Abs::derivative(Variable const& r) const
@@ -2450,6 +2353,153 @@ Expr const* Pow::derivative(Variable const& r) const
     return step9;
 }
 
+Expr const* Sum::derivative(Variable const& r) const
+{
+    // D(f(x)+g(x)+h(x)+...+C) = (f'(x) + g'(x) + h'(x) + ...)
+
+    auto step0 = constant(0);
+
+    for (auto const& f_x : node)
+    {
+        auto step1 = f_x->derive(r);
+        auto step2 = step0->add(step1);
+        Erase(step0);
+        Erase(step1);
+        step0 = step2;
+    }
+
+    return step0;
+}
+
+Expr const* Prod::derivative(Variable const& r) const
+{
+    // D(C*f(x)*g(x)*h(x)*...) = (C*f(x)*g(x)*h(x)*...) * (f'(x)/f(x) + g'(x)/g(x) + h'(x)/h(x) + ...)
+
+    auto step0 = constant(0);
+
+    for (auto const& f_x : node)
+    {
+        auto step1 = f_x->dxdivx(r);
+        auto step2 = step0->add(step1);
+        Erase(step0);
+        Erase(step1);
+        step0 = step2;
+    }
+
+    auto step1 = this->mul(step0);
+
+    Erase(step0);
+
+    return step1;
+}
+
+/***********************************************************************************************************************
+*** dxdivx()
+***********************************************************************************************************************/
+
+Expr const* Expression::data::dxdivx(Variable const& r) const
+{
+    auto step0 = derive(r);
+    auto step1 = invert();
+    auto step2 = step0->mul(step1);
+
+    Erase(step0);
+    Erase(step1);
+
+    return step2;
+}
+
+Expr const* Abs::dxdivx(Variable const& r) const
+{
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->invert();
+    auto step2 = step0->mul(step1);
+
+    Erase(step0);
+    Erase(step1);
+
+    return step2;
+}
+
+Expr const* Sqrt::dxdivx(Variable const& r) const
+{
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->invert();
+    auto step2 = step1->mul(literal2Inv);
+    auto step3 = step0->mul(step2);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+
+    return step3;
+}
+
+Expr const* Cbrt::dxdivx(Variable const& r) const
+{
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->invert();
+    auto step2 = step1->mul(literal3Inv);
+    auto step3 = step0->mul(step2);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+
+    return step3;
+}
+
+Expr const* Exp::dxdivx(Variable const& r) const
+{
+    return f_x->derive(r);
+}
+
+Expr const* Sin::dxdivx(Variable const& r) const
+{
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->tan();
+    auto step2 = step1->invert();
+    auto step3 = step0->mul(step2);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+
+    return step3;
+}
+
+Expr const* Cos::dxdivx(Variable const& r) const
+{
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->tan();
+    auto step2 = step1->negate();
+    auto step3 = step0->mul(step2);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+
+    return step3;
+}
+
+Expr const* Tan::dxdivx(Variable const& r) const
+{
+    auto step0 = f_x->derive(r);
+    auto step1 = f_x->sin();
+    auto step2 = f_x->cos();
+    auto step3 = step1->mul(step2);
+    auto step4 = step3->invert();
+    auto step5 = step0->mul(step4);
+
+    Erase(step0);
+    Erase(step1);
+    Erase(step2);
+    Erase(step3);
+    Erase(step4);
+
+    return step5;
+}
+
 /***********************************************************************************************************************
 *** value()
 ***********************************************************************************************************************/
@@ -2460,11 +2510,36 @@ double Mul::value() const
     // The purpose is to be able to prune [possibly undefined] branches of the expression tree by using a variable
     // and giving it a value '1' (=use the multiplicand) or '0' (=prune the expression contained by multiplicand)
 
-    auto x = f_x->evaluate();
-    if (x == 0) return 0;
-    auto y = g_x->evaluate();
-    if (y == 0) return 0;
-    return x * y;
+    auto a = f_x->evaluate();
+    if (a == 0) return 0;
+    auto b = g_x->evaluate();
+    if (b == 0) return 0;
+    return a * b;
+}
+
+double Sum::value() const
+{
+    double result = n;
+    for (auto const& f_x : node) result = result + f_x->evaluate();
+    return result;
+}
+
+double Prod::value() const
+{
+    // NOTE: All of '0*inf', '0*nan', 'inf*0', 'nan*0' deliberately evaluate as '0'
+    // The purpose is to be able to prune [possibly undefined] branches of the expression tree by using a variable
+    // and giving it a value '1' (=use the multiplicand) or '0' (=prune the expression contained by multiplicand)
+
+    double result = n;
+
+    for (auto const& f_x : node)
+    {
+        auto a = f_x->evaluate();
+        if (a == 0) return 0;
+        result = result * a;
+    }
+
+    return result;
 }
 
 /***********************************************************************************************************************
@@ -3645,6 +3720,20 @@ bool Pow::guaranteed(Attr a) const
     return false;
 }
 
+bool Sum::guaranteed(Attr) const
+{
+    return false;
+
+    TODO;
+}
+
+bool Prod::guaranteed(Attr) const
+{
+    return false;
+
+    TODO;
+}
+
 /***********************************************************************************************************************
 *** print()
 ***********************************************************************************************************************/
@@ -3888,7 +3977,7 @@ void ZConic::print(std::ostream& out) const
 void Add::print(std::ostream& out) const
 {
     f_x->print(out);
-    out << "+";
+    out << " + ";
     g_x->print(out);
 }
 
@@ -3912,6 +4001,27 @@ void Pow::print(std::ostream& out) const
     if (g_x->is(NodeType::ADD) || g_x->is(NodeType::MUL) || g_x->is(NodeType::POW)) out << "(";
     g_x->print(out);
     if (g_x->is(NodeType::ADD) || g_x->is(NodeType::MUL) || g_x->is(NodeType::POW)) out << ")";
+}
+
+void Sum::print(std::ostream& out) const
+{
+    for (auto& f_x : node)
+    {
+        f_x->print(out);
+        out << " + ";
+    }
+    out << n;
+}
+
+void Prod::print(std::ostream& out) const
+{
+    out << n;
+    for (auto& f_x : node)
+    {
+        out << "*(";
+        f_x->print(out);
+        out << ")";
+    }
 }
 
 /***********************************************************************************************************************
@@ -4077,6 +4187,11 @@ Expression Spp(Expression const& r)
     return r.pData->softpp();
 }
 
+Expression foo(std::string const &r)
+{
+    return Expression::data::foo(r);
+}
+
 Expression operator+(Expression const& r)
 {
     return r;
@@ -4146,14 +4261,6 @@ Expression Expression::AtomicBind(Bindings const& r) const
 {
     std::vector<std::pair<Variable, Expression::data const*> > t;
     for (auto& s : r) t.emplace_back(s.first, s.second.pData);
-    return pData->bind(t);
-}
-
-Expression Expression::Bind(Variable const& r, double d) const
-{
-    Expression s(d);
-    std::vector<std::pair<Variable, Expression::data const*>> t;
-    t.emplace_back(r, s.pData);
     return pData->bind(t);
 }
 
