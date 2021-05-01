@@ -150,6 +150,7 @@ private:
     Expr const* function(NodeType n) const;
 
     void* operator new(size_t n) { return ::operator new(n); }
+    void* operator new[](size_t) = delete;
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -177,6 +178,12 @@ struct FunctionNode : public Expr
         f_x->functionNode[fn] = this;
     }
 
+    bool is(NodeType t) const override final { return t == fn; }
+    bool is(NodeType t, Expr const* p) const override final { return t == fn && p == f_x; }
+
+    void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); } }
+
+protected:
     virtual ~FunctionNode()
     {
         assert(f_x->functionNode.find(fn) != f_x->functionNode.end() && f_x->functionNode[fn] == this);
@@ -184,12 +191,6 @@ struct FunctionNode : public Expr
         Erase(f_x);
     }
 
-    bool is(NodeType t) const override final { return t == fn; }
-    bool is(NodeType t, Expr const* p) const override final { return t == fn && p == f_x; }
-
-    void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); } }
-
-protected:
     Expr const* const f_x;
 
 private:
@@ -204,17 +205,17 @@ struct OperatorNode : public Expr
 {
     OperatorNode(Expr const* p, Expr const* q) : Expr(std::max(p->depth, q->depth) + 1), f_x(p), g_x(q) { }
 
+    bool is(NodeType, Expr const*) const override final { return false; }
+
+    void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); g_x->purge(); } }
+
+protected:
     virtual ~OperatorNode()
     {
         Erase(f_x);
         Erase(g_x);
     }
 
-    bool is(NodeType, Expr const*) const override final { return false; }
-
-    void purge() const override final { if (cachedNode) { Expr::purge(); f_x->purge(); g_x->purge(); } }
-
-protected:
     Expr const* const f_x;
     Expr const* const g_x;
 };
@@ -299,12 +300,6 @@ struct ConstantNode final : public Expr, private ObjectGuard<ConstantNode>
         constantNode[n] = this;
     }
 
-    virtual ~ConstantNode()
-    {
-        assert(constantNode.find(n) != constantNode.end() && constantNode[n] == this);
-        constantNode.erase(n);
-    }
-
     Expr const* abs() const override final { return constant(std::abs(n)); }
     Expr const* sgn() const override final { return constant(double(n > 0) - (n < 0)); }
     Expr const* sqrt() const override final { return constant(std::sqrt(n)); }
@@ -358,6 +353,12 @@ struct ConstantNode final : public Expr, private ObjectGuard<ConstantNode>
 
     void print(std::ostream&) const override final;
 
+    virtual ~ConstantNode()
+    {
+        assert(constantNode.find(n) != constantNode.end() && constantNode[n] == this);
+        constantNode.erase(n);
+    }
+
 private:
     double const n;
 };
@@ -384,12 +385,6 @@ struct VariableNode final : public Expr, private ObjectGuard<VariableNode>
         variableNode[x.id()] = this;
     }
 
-    virtual ~VariableNode()
-    {
-        assert(variableNode.find(x.id()) != variableNode.end() && variableNode[x.id()] == this);
-        variableNode.erase(x.id());
-    }
-
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final
     {
         for (auto& item : r)
@@ -414,6 +409,12 @@ struct VariableNode final : public Expr, private ObjectGuard<VariableNode>
     void print(std::ostream&) const override final;
 
 private:
+    virtual ~VariableNode()
+    {
+        assert(variableNode.find(x.id()) != variableNode.end() && variableNode[x.id()] == this);
+        variableNode.erase(x.id());
+    }
+
     Variable const x;
 };
 
@@ -1280,15 +1281,6 @@ struct Add final : public OperatorNode, private ObjectGuard<Add>
         g_x->addNode[f_x] = this;
     }
 
-    virtual ~Add()
-    {
-        assert(f_x->addNode.find(g_x) != f_x->addNode.end() && f_x->addNode[g_x] == this);
-        assert(g_x->addNode.find(f_x) != g_x->addNode.end() && g_x->addNode[f_x] == this);
-
-        f_x->addNode.erase(g_x);
-        g_x->addNode.erase(f_x);
-    }
-
     double value() const override final { return f_x->evaluate() + g_x->evaluate(); }
 
     Expr const* add(Expr const*) const override final;
@@ -1315,6 +1307,16 @@ struct Add final : public OperatorNode, private ObjectGuard<Add>
     Expr const* derivative(Variable const&) const override final;
 
     void print(std::ostream&) const override final;
+
+private:
+    virtual ~Add()
+    {
+        assert(f_x->addNode.find(g_x) != f_x->addNode.end() && f_x->addNode[g_x] == this);
+        assert(g_x->addNode.find(f_x) != g_x->addNode.end() && g_x->addNode[f_x] == this);
+
+        f_x->addNode.erase(g_x);
+        g_x->addNode.erase(f_x);
+    }
 };
 
 /***********************************************************************************************************************
@@ -1330,15 +1332,6 @@ struct Mul final : public OperatorNode, private ObjectGuard<Mul>
 
         f_x->mulNode[g_x] = this;
         g_x->mulNode[f_x] = this;
-    }
-
-    virtual ~Mul()
-    {
-        assert(f_x->mulNode.find(g_x) != f_x->mulNode.end() && f_x->mulNode[g_x] == this);
-        assert(g_x->mulNode.find(f_x) != g_x->mulNode.end() && g_x->mulNode[f_x] == this);
-
-        f_x->mulNode.erase(g_x);
-        g_x->mulNode.erase(f_x);
     }
 
     Expr const* mul(Expr const*) const override final;
@@ -1364,6 +1357,16 @@ struct Mul final : public OperatorNode, private ObjectGuard<Mul>
     double value() const override final;
 
     void print(std::ostream&) const override final;
+
+private:
+    virtual ~Mul()
+    {
+        assert(f_x->mulNode.find(g_x) != f_x->mulNode.end() && f_x->mulNode[g_x] == this);
+        assert(g_x->mulNode.find(f_x) != g_x->mulNode.end() && g_x->mulNode[f_x] == this);
+
+        f_x->mulNode.erase(g_x);
+        g_x->mulNode.erase(f_x);
+    }
 };
 
 /***********************************************************************************************************************
@@ -1415,6 +1418,14 @@ struct Pow final : public OperatorNode, private ObjectGuard<Pow>
     double value() const override final { return std::pow(f_x->evaluate(), g_x->evaluate()); }
 
     void print(std::ostream&) const override final;
+
+private:
+    virtual ~Pow()
+    {
+        assert(f_x->powNode.find(g_x) != f_x->powNode.end() && f_x->powNode[g_x] == this);
+
+        f_x->powNode.erase(g_x);
+    }
 };
 
 /***********************************************************************************************************************
