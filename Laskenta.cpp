@@ -2,7 +2,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Risto Lankinen
+Copyright (c) 2021 Risto Lankinen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,8 +33,6 @@ SOFTWARE.
 //**********************************************************************************************************************
 
 auto const STACK_LIMIT = 10000;
-
-struct ConstantNode;
 
 using Attr = Expression::Attribute;
 using Expr = Expression::data;
@@ -96,7 +94,7 @@ struct Expression::data : public Shared
 
     // Evaluation and derivation
 
-    virtual Expr const* bind(std::vector<std::pair<Variable, Expr const *>> const&) const = 0;
+    virtual Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const&) const = 0;
 
     Expr const* derive(Variable const& r) const { return Clone(cachedNode ? cachedNode : cachedNode = derivative(r)); }
     double evaluate() const { if (cleanLevel != dirtyLevel) { valueCache = value(); cleanLevel = dirtyLevel; } return valueCache; }
@@ -141,14 +139,6 @@ protected:
 
     static std::unordered_map<double, Expr const*> constantNode;
     static std::unordered_map<size_t, Expr const*> variableNode;
-
-    static ConstantNode const literal0;
-    static ConstantNode const literal1;
-    static ConstantNode const literal2;
-    static ConstantNode const literal3;
-    static ConstantNode const literal2Inv;
-    static ConstantNode const literal3Inv;
-    static ConstantNode const literal1Neg;
 
 private:
     mutable size_t cleanLevel;
@@ -374,16 +364,6 @@ private:
 
 //----------------------------------------------------------------------------------------------------------------------
 
-ConstantNode const Expression::data::literal0(0);
-ConstantNode const Expression::data::literal1(1);
-ConstantNode const Expression::data::literal2(2);
-ConstantNode const Expression::data::literal3(3);
-ConstantNode const Expression::data::literal2Inv(1.0 / 2);
-ConstantNode const Expression::data::literal3Inv(1.0 / 3);
-ConstantNode const Expression::data::literal1Neg(-1);
-
-//----------------------------------------------------------------------------------------------------------------------
-
 Expr const* Expression::data::constant(double d)
 {
     if (isnan(d)) return Clone(Nan::instance);
@@ -514,7 +494,7 @@ struct Sqrt final : public FunctionNode, private ObjectGuard<Sqrt>
 
     Expr const* abs() const override final { return Clone(this); }
     Expr const* square() const override final { return Clone(f_x); }
-    Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal2Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+    Expr const* pow(Expr const* p) const override final;
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->sqrt(); Erase(step0); return step1; }
 
@@ -535,7 +515,7 @@ struct Cbrt final : public FunctionNode, private ObjectGuard<Cbrt>
     Cbrt(Expr const* p) : FunctionNode(p, NodeType::CBRT) { }
 
     Expr const* sgn() const override final { return f_x->sgn(); }
-    Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal3Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+    Expr const* pow(Expr const*) const override final;
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->cbrt(); Erase(step0); return step1; }
 
@@ -556,7 +536,7 @@ struct Exp final : public FunctionNode, private ObjectGuard<Exp>
     Exp(Expr const* p) : FunctionNode(p, NodeType::EXP) { }
 
     Expr const* abs() const override final { return Clone(this); }
-    Expr const* sgn() const override final { return Clone(literal1); }
+    Expr const* sgn() const override final { return constant(1); }
     Expr const* log() const override final { return Clone(f_x); }
     Expr const* pow(Expr const* p) const override final { auto step0 = f_x->mul(p); auto step1 = step0->exp();  Erase(step0); return step1; }
 
@@ -805,7 +785,7 @@ struct CosH final : public FunctionNode, private ObjectGuard<CosH>
     CosH(Expr const* p) : FunctionNode(p, NodeType::COSH) { }
 
     Expr const* abs() const override final { return Clone(this); }
-    Expr const* sgn() const override final { return Clone(literal1); }
+    Expr const* sgn() const override final { return constant(1); }
     Expr const* acosh() const override final { return f_x->abs(); }
     Expr const* invert() const override final { return f_x->sech(); }
     Expr const* xconic() const override final { auto step0 = f_x->sinh(); auto step1 = step0->abs(); Erase(step0); return step1; }
@@ -1095,9 +1075,7 @@ struct Square final : public FunctionNode, private ObjectGuard<Square>
     Expr const* abs() const override final { return Clone(this); }
     Expr const* sqrt() const override final { return f_x->abs(); }
 
-    Expr const* mul(Expr const*) const override final;
-    Expr const* commutative_mul(Expr const*) const override final;
-    Expr const* pow(Expr const* p) const override final { auto step0 = p->mul(literal2); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+    Expr const* pow(Expr const* p) const override final;
 
     Expr const* bind(std::vector<std::pair<Variable, Expr const*>> const& r) const override final { auto step0 = f_x->bind(r); auto step1 = step0->square(); Erase(step0); return step1; }
 
@@ -1408,10 +1386,10 @@ struct Pow final : public OperatorNode, private ObjectGuard<Pow>
         f_x->powNode.erase(g_x);
     }
 
-    Expr const* sqrt() const override final { auto step0 = g_x->mul(literal2Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
-    Expr const* cbrt() const override final { auto step0 = g_x->mul(literal3Inv); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+    Expr const* sqrt() const override final;
+    Expr const* cbrt() const override final;
     Expr const* invert() const override final { auto step0 = g_x->negate(); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
-    Expr const* square() const override final { auto step0 = g_x->mul(literal2); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
+    Expr const* square() const override final;
 
     Expr const* mul(Expr const*) const override final;
     Expr const* commutative_mul(Expr const*) const override final;
@@ -1456,9 +1434,57 @@ Expr const* Expression::data::abs() const
 
 Expr const* Expression::data::sgn() const
 {
-    if (guaranteed(Attr::POSITIVE)) return Clone(literal1);
-    if (guaranteed(Attr::NEGATIVE)) return Clone(literal1Neg);
+    if (guaranteed(Attr::POSITIVE)) return constant(1);
+    if (guaranteed(Attr::NEGATIVE)) return constant(-1);
     return function(NodeType::SGN);
+}
+
+/***********************************************************************************************************************
+*** sqrt()
+***********************************************************************************************************************/
+
+Expr const* Pow::sqrt() const
+{
+    static ConstantNode inv2(1.0 / 2);
+
+    auto step0 = g_x->mul(inv2);
+    auto step1 = f_x->pow(step0);
+
+    Erase(step0);
+
+    return step1;
+}
+
+/***********************************************************************************************************************
+*** cbrt()
+***********************************************************************************************************************/
+
+Expr const* Pow::cbrt() const
+{
+    static ConstantNode inv3(1.0 / 3);
+
+    auto step0 = g_x->mul(inv3);
+    auto step1 = f_x->pow(step0);
+
+    Erase(step0);
+
+    return step1;
+}
+
+/***********************************************************************************************************************
+*** square()
+***********************************************************************************************************************/
+
+Expr const* Pow::square() const
+{
+    static ConstantNode num2(2);
+
+    auto step0 = g_x->mul(num2);
+    auto step1 = f_x->pow(step0);
+
+    Erase(step0);
+
+    return step1;
 }
 
 /***********************************************************************************************************************
@@ -1610,18 +1636,6 @@ Expr const* Negate::mul(Expr const* p) const
     }
 }
 
-Expr const* Square::mul(Expr const* p) const
-{
-    if (f_x == p) return f_x->pow(literal3);
-    return Expr::mul(p);
-}
-
-Expr const* Square::commutative_mul(Expr const* p) const
-{
-    if(f_x == p) return f_x->pow(literal3);
-    return Expr::commutative_mul(p);
-}
-
 Expr const* Add::mul(Expr const* p) const
 {
     if (depth > STACK_LIMIT)
@@ -1702,9 +1716,11 @@ Expr const* Mul::commutative_mul(Expr const* p) const
 
 Expr const* Pow::mul(Expr const* p) const
 {
+    static ConstantNode num1(1);
+
     if (f_x == p)
     {
-        auto step0 = g_x->add(literal1);
+        auto step0 = g_x->add(num1);
         auto step1 = f_x->pow(step0);
 
         Erase(step0);
@@ -1717,9 +1733,11 @@ Expr const* Pow::mul(Expr const* p) const
 
 Expr const* Pow::commutative_mul(Expr const* p) const
 {
+    static ConstantNode num1(1);
+
     if (f_x == p)
     {
-        auto step0 = g_x->add(literal1);
+        auto step0 = g_x->add(num1);
         auto step1 = f_x->pow(step0);
 
         Erase(step0);
@@ -1739,7 +1757,7 @@ Expr const* Expression::data::pow(Expr const* p) const
     if (p->is(NodeType::CONSTANT))
     {
         double n = p->evaluate();
-        if (n == 0) return Clone(literal1);
+        if (n == 0) return constant(1);
         if (n == 1) return Clone(this);
         if (n == 2) return square();
         if (n == -1) return invert();
@@ -1760,6 +1778,42 @@ Expr const* ConstantNode::pow(Expr const* p) const
     return Expr::pow(p);
 }
 
+Expr const* Sqrt::pow(Expr const* p) const
+{
+    static ConstantNode inv2(1.0 / 2);
+
+    auto step0 = p->mul(inv2);
+    auto step1 = f_x->pow(step0);
+
+    Erase(step0);
+
+    return step1;
+}
+
+Expr const* Cbrt::pow(Expr const* p) const
+{
+    static ConstantNode inv3(1.0 / 3);
+
+    auto step0 = p->mul(inv3);
+    auto step1 = f_x->pow(step0);
+
+    Erase(step0);
+
+    return step1;
+}
+
+Expr const* Square::pow(Expr const* p) const
+{
+    static ConstantNode num2(2);
+
+    auto step0 = p->mul(num2);
+    auto step1 = f_x->pow(step0);
+
+    Erase(step0);
+
+    return step1;
+}
+
 /***********************************************************************************************************************
 *** derivative()
 ***********************************************************************************************************************/
@@ -1768,23 +1822,24 @@ Expr const* ConstantNode::derivative(Variable const&) const
 {
     // D(n) = 0
 
-    return Clone(literal0);
+    return constant(0);
 }
 
 Expr const* VariableNode::derivative(Variable const& r) const
 {
     // D(x) = 1 , D(?) = 0
 
-    return Clone(r.id() == x.id() ? literal1 : literal0);
+    return constant(r.id() == x.id());
 }
 
 Expr const* Abs::derivative(Variable const& r) const
 {
     // D(abs(f_x)) = D(f_x) * sgn(f_x)
 
-    auto step0 = f_x->derive(r);
-    auto step1 = f_x->sgn();
+    auto step0 = f_x->sgn();
+    auto step1 = f_x->derive(r);
     auto step2 = step0->mul(step1);
+
 
     Erase(step0);
     Erase(step1);
@@ -1796,16 +1851,18 @@ Expr const* Sgn::derivative(Variable const& r) const
 {
     // D(sgn(f_x)) = D(f_x) * 0
 
-    return Clone(literal0);
+    return constant(0);
 }
 
 Expr const* Sqrt::derivative(Variable const& r) const
 {
     // D(sqrt(f_x)) = D(f_x) * 1/2 * 1/sqrt(f_x)
 
+    static ConstantNode inv2(1.0 / 2);
+
     auto step0 = f_x->derive(r);
     auto step1 = this->invert();
-    auto step2 = step1->mul(literal2Inv);
+    auto step2 = step1->mul(inv2);
     auto step3 = step0->mul(step2);
 
     Erase(step0);
@@ -1819,10 +1876,12 @@ Expr const* Cbrt::derivative(Variable const& r) const
 {
     // D(cbrt(f_x)) = D(f_x) * 1/3 * 1/cbrt(f_x)^2
 
+    static ConstantNode inv3(1.0 / 3);
+
     auto step0 = f_x->derive(r);
     auto step1 = this->square();
     auto step2 = step1->invert();
-    auto step3 = step2->mul(literal3Inv);
+    auto step3 = step2->mul(inv3);
     auto step4 = step0->mul(step3);
 
     Erase(step0);
@@ -1877,8 +1936,10 @@ Expr const* Log1P::derivative(Variable const& r) const
 {
     // D(log(f_x+1)) = D(f_x) * 1/(f_x+1)
 
+    static ConstantNode num1(1);
+
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->add(literal1);
+    auto step1 = f_x->add(num1);
     auto step2 = step1->invert();
     auto step3 = step0->mul(step2);
 
@@ -2227,8 +2288,10 @@ Expr const* Square::derivative(Variable const& r) const
 {
     // D(f_x^2) = D(f_x) * 2*f_x
 
+    static ConstantNode num2(2);
+
     auto step0 = f_x->derive(r);
-    auto step1 = f_x->mul(literal2);
+    auto step1 = f_x->mul(num2);
     auto step2 = step0->mul(step1);
 
     Erase(step0);
@@ -2323,10 +2386,12 @@ Expr const* Pow::derivative(Variable const& r) const
 {
     // D(f_x^g_x) = D(f_x) * g_x*f_x^(g_x-1) + D(g_x) * f_x^g_x*log(f_x)
 
+    static ConstantNode neg1(-1);
+
     auto step0 = f_x->derive(r);
     auto step1 = g_x->derive(r);
     auto step2 = f_x->log();
-    auto step3 = g_x->add(literal1Neg);
+    auto step3 = g_x->add(neg1);
     auto step4 = f_x->pow(step3);
     auto step5 = g_x->mul(step4);
     auto step6 = this->mul(step2);

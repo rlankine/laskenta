@@ -2,7 +2,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Risto Lankinen
+Copyright (c) 2021 Risto Lankinen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -127,13 +127,15 @@ struct Expression final
     bool Guaranteed(Attribute) const;
     static void Touch();
 
-    int32_t Depth() const noexcept;
-
     struct data;
 
 private:
     Expression(data const*);
     mutable data const* pData;
+
+    friend int main();
+
+    int32_t Depth() const noexcept;
 };
 
 //**********************************************************************************************************************
