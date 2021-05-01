@@ -1382,13 +1382,6 @@ struct Pow final : public OperatorNode, private ObjectGuard<Pow>
         f_x->powNode[g_x] = this;
     }
 
-    virtual ~Pow()
-    {
-        assert(f_x->powNode.find(g_x) != f_x->powNode.end() && f_x->powNode[g_x] == this);
-
-        f_x->powNode.erase(g_x);
-    }
-
     Expr const* sqrt() const override final;
     Expr const* cbrt() const override final;
     Expr const* invert() const override final { auto step0 = g_x->negate(); auto step1 = f_x->pow(step0); Erase(step0); return step1; }
